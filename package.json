@@ -1,0 +1,11 @@
+{
+  "name": "kvisa",
+  "private": true,
+  "type": "module",
+  "description": "Kvisa laundry dispatch — no-build web app (ES modules) on Supabase",
+  "scripts": {
+    "check": "for f in $(find src -name '*.js'); do node --check \"$f\" || exit 1; done",
+    "test": "node --test tests/unit/*.test.js",
+    "test:e2e": "python3 tests/e2e/smoke.py"
+  }
+}
