@@ -22,3 +22,8 @@
 | Time zone | All timestamps stored in UTC; shown/entered in the org time zone (Settings). Default America/New_York. | Spec §16. |
 | Live updates | Pages refresh every 60 seconds and after each change (no websockets). | Simple and reliable on the free plan. |
 | Address autocomplete, GPS, email/SMS | Not included. Addresses link to Google Maps for navigation. | Spec allows; would need paid/secret API keys handled server-side. |
+| Driver job offers | "Dispatch call" creates an offer for one stage, sent to all active drivers or chosen ones, optionally with a time limit. One open offer per stage (unique index) + a row lock make acceptance first-come-first-served. | Dispatch offers spec §1–5. |
+| Address privacy | Drivers have no table access at all. Before accepting they can only call `my_offers()`, which returns street names (`street_only()`), stage, bags, time and the dispatcher's note. Exact addresses, contacts and access instructions come only from `my_tasks()`, which returns stages *currently* assigned to the caller — so reassigning revokes access immediately, and the change is logged (`offer.access_revoked`). | Spec §6: enforced in the database, not the UI. |
+| When a stage can be dispatched | Pickup / drop-off: a washer is assigned and both addresses exist. Return collection / final delivery: washing is completed. | Spec §1, §3. |
+| Automatic return dispatch | Off by default; an administrator can turn it on in Settings → Driver dispatch. | Spec §3. |
+| Expiry | Offers past their time limit are closed automatically the next time anyone looks at offers. | No server cron on the free plan. |

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   zonedToDate, dateToZonedParts, addDays, startOfWeek, daysInMonth, weekdayOf, parseBagCount,
-  findPossibleDuplicates, friendlyError, nextActions, statusLabel, orderNo, clientNo, todayInTz,
+  findPossibleDuplicates, friendlyError, nextActions, statusLabel, orderNo, clientNo, todayInTz, streetOnly,
 } from '../../src/lib/format.js';
 import { toCsv, csvCell } from '../../src/lib/csv.js';
 
@@ -86,4 +86,15 @@ test('CSV export quotes properly and blocks formula injection', () => {
   assert.equal(csvCell(null), '');
   const out = toCsv([{ a: 1, b: 'x' }], [{ key: 'a', label: 'A' }, { key: 'b', label: 'B', value: (r) => r.b.toUpperCase() }]);
   assert.equal(out, 'A,B\r\n1,X\r\n');
+});
+
+test('street masking matches the database rules (preview only)', () => {
+  assert.equal(streetOnly('12 Main Street, Apt 4B, Brooklyn NY 11230'), 'Main Street');
+  assert.equal(streetOnly('45 Maple Avenue #2, Brooklyn NY'), 'Maple Avenue');
+  assert.equal(streetOnly('12-14 Main St Apt 3'), 'Main St');
+  assert.equal(streetOnly('77B Ocean Pkwy, Unit 9'), 'Ocean Pkwy');
+  assert.equal(streetOnly('100 W 34th Street #5'), 'W 34th Street');
+  assert.equal(streetOnly('5'), 'Address on file');
+  assert.equal(streetOnly(null), 'Address on file');
+  assert.match(friendlyError({ message: 'KVISA_TAKEN: this job is no longer available — another driver accepted it' }), /^This job is no longer available/);
 });

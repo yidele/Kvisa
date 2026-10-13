@@ -6,10 +6,12 @@ import {
 } from '../components/ui.js';
 import {
   assignModal, recordModal, problemModal, cancelOrder, reopenOrder, changeBagsModal, rescheduleModal,
+  dispatchModal, cancelOfferAction, dispatchBadge,
 } from '../components/orderActions.js';
 import { renderAuditList } from './history.js';
 import {
   orderNo, taskLabel, fmtDateTime, fmtDate, EVENT_LABELS, parseBagCount, nextActions, clientNo,
+  DRIVER_STAGES, dispatchButtonLabel, RESPONSE_LABELS, DISPATCH_LABELS,
 } from '../lib/format.js';
 
 export async function render(root, { params }) {
@@ -17,7 +19,7 @@ export async function render(root, { params }) {
   let data = null;
 
   async function load() {
-    const [ov, order, tasks, events, exceptions, assigns, audit] = await Promise.all([
+    const [ov, order, tasks, events, exceptions, assigns, audit, ...extra] = await Promise.all([
       run(sb.from('order_overview').select('*').eq('id', id).maybeSingle()),
       run(sb.from('orders').select('*, clients(name, client_no, phone, category_id)').eq('id', id).maybeSingle()),
       run(sb.from('order_tasks').select('*').eq('order_id', id).order('seq')),
@@ -25,9 +27,12 @@ export async function render(root, { params }) {
       run(sb.from('order_exceptions').select('*').eq('order_id', id).order('reported_at', { ascending: false })),
       run(sb.from('task_assignments').select('*, order_tasks!inner(order_id, task_type)').eq('order_tasks.order_id', id).order('assigned_at')),
       run(sb.from('audit_logs').select('*').eq('order_id', id).order('at', { ascending: false }).limit(200)),
+      run(sb.from('task_dispatch').select('*').eq('order_id', id)),
+      run(sb.from('task_offers').select('*').eq('order_id', id).order('created_at', { ascending: false })),
+      run(sb.from('offer_recipients').select('*').eq('order_id', id)),
     ]);
     if (!order) throw new Error('Order not found (it may not exist, or you may not have access).');
-    data = { ov, order, tasks, events, exceptions, assigns, audit };
+    data = { ov, order, tasks, events, exceptions, assigns, audit, dispatch: extra[0], offers: extra[1], recipients: extra[2] };
   }
 
   function draw() {
@@ -39,6 +44,27 @@ export async function render(root, { params }) {
     const effective = (e) => { const c = corrections.filter((x) => x.corrects_event_id === e.id).pop(); return c ? c.actual_bags : e.actual_bags; };
     const received = events.some((e) => e.event_type === 'received_by_washer' && !reverted.has(e.id));
     const openEx = exceptions.filter((x) => x.status === 'open');
+
+    const dispatchSection = (t) => {
+      const d = (data.dispatch || []).find((x) => x.task_id === t.id) || {};
+      const offers = (data.offers || []).filter((f) => f.task_id === t.id);
+      const canSend = open && !d.blocked_reason && !['available', 'in_progress', 'completed'].includes(d.dispatch_status);
+      return html`<div class="dispatch-box">
+        <div class="dispatch-head"><span>Driver dispatch</span>${dispatchBadge(d.dispatch_status)}</div>
+        ${d.dispatch_status === 'available' ? html`<small class="muted">Sent ${fmtDateTime(d.offered_at, tz())} to ${d.offered_count} driver(s)${d.declined_count ? `, ${d.declined_count} declined` : ''}${d.expires_at ? ` · open until ${fmtDateTime(d.expires_at, tz())}` : ''}</small>` : ''}
+        ${d.blocked_reason && open && t.status === 'pending' ? html`<small class="muted">${d.blocked_reason}</small>` : ''}
+        <div class="btn-group">
+          ${canSend ? html`<button class="btn btn-sm ${d.dispatch_status === 'not_dispatched' ? 'btn-primary' : ''}" data-act="dispatch" data-task="${t.id}" data-type="${t.task_type}">${['declined', 'expired', 'cancelled'].includes(d.dispatch_status) ? 'Resend' : dispatchButtonLabel(t.task_type)}</button>` : ''}
+          ${d.dispatch_status === 'available' ? html`<button class="btn btn-sm" data-act="dispatch" data-task="${t.id}" data-type="${t.task_type}">Resend</button>
+            <button class="btn btn-sm btn-danger-ghost" data-act="cancel-offer" data-offer="${d.offer_id}">Cancel offer</button>` : ''}
+        </div>
+        ${offers.length ? html`<details class="offer-log"><summary>Offer history (${offers.length})</summary>
+          <ul class="list compact">${offers.map((f) => html`<li class="offer-item"><div>
+            <strong>${DISPATCH_LABELS[f.status] || f.status}</strong> <small class="muted">${fmtDateTime(f.created_at, tz())}${f.accepted_at ? ' · accepted ' + fmtDateTime(f.accepted_at, tz()) : ''}${f.close_reason ? ' · ' + f.close_reason : ''}</small>
+            <div class="chips">${(data.recipients || []).filter((r) => r.offer_id === f.id).map((r) => html`<span class="badge ${r.response === 'accepted' ? 'tone-done' : r.response === 'declined' ? 'tone-danger' : 'tone-neutral'}">${personName(r.person_id) || 'Driver'}: ${RESPONSE_LABELS[r.response] || r.response}</span>`)}</div>
+          </div></li>`)}</ul></details>` : ''}
+      </div>`;
+    };
 
     const stageCard = (t) => {
       const prevDone = tasks.filter((x) => x.seq < t.seq).every((x) => x.status === 'completed');
@@ -63,6 +89,7 @@ export async function render(root, { params }) {
             ${t.instructions ? html`<div><dt>Instructions</dt><dd>${t.instructions}</dd></div>` : ''}
             ${t.notes ? html`<div><dt>Notes</dt><dd>${t.notes}</dd></div>` : ''}
           </dl>
+          ${DRIVER_STAGES.includes(t.task_type) ? dispatchSection(t) : ''}
           <div class="stage-actions">
             ${acts.length ? html`<button class="btn btn-primary btn-sm" data-act="record" data-task="${t.id}">Record: ${acts[acts.length - 1].label}</button>` : ''}
             ${open && !prevDone && t.status === 'pending' ? html`<small class="muted">Waits for the earlier stage.</small>` : ''}
@@ -187,6 +214,8 @@ export async function render(root, { params }) {
           break;
         }
         case 'problem': changed = await problemModal(task, order.order_no); break;
+        case 'dispatch': changed = await dispatchModal(el.dataset.task, { orderNoValue: order.order_no, taskType: el.dataset.type }); break;
+        case 'cancel-offer': changed = await cancelOfferAction(el.dataset.offer); break;
         case 'skip': {
           const r = await confirmAction({ title: 'Skip this occurrence?', message: 'Only this date is cancelled. The recurring series continues, and this date will not be generated again.',
             confirmLabel: 'Skip', reasonLabel: 'Reason', reasons: ['Skipped occurrence', 'Client away', 'Holiday'] });

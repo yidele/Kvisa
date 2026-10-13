@@ -72,6 +72,14 @@
     profiles: [{ id: 'u1', email: 'admin@test', full_name: 'Admin User', person_id: null, active: true }],
     user_roles: [{ user_id: 'u1', role: 'admin', active: true }],
     invites: [], task_calendar: cal,
+    task_dispatch: tasks.filter((t) => t.task_type !== 'washing').map((t) => ({ task_id: t.id, order_id: O, task_type: t.task_type, seq: t.seq,
+      task_status: t.status, assignee_id: t.assignee_id,
+      offer_id: t.task_type === 'return_collection' ? 'off1' : null, offer_status: t.task_type === 'return_collection' ? 'declined' : null,
+      offered_at: iso(-1), expires_at: null, accepted_at: null, accepted_person_id: null, offered_count: 2, declined_count: 2,
+      dispatch_status: t.status === 'completed' ? 'completed' : t.task_type === 'return_collection' ? 'declined' : t.assignee_id ? 'assigned' : 'not_dispatched',
+      blocked_reason: t.task_type === 'delivery' ? 'Washing is not completed yet' : null })),
+    task_offers: [{ id: 'off1', order_id: O, task_id: tasks[3].id, status: 'declined', created_at: iso(-1), accepted_at: null, close_reason: 'Every driver declined' }],
+    offer_recipients: [{ offer_id: 'off1', order_id: O, person_id: people[0].id, response: 'declined' }, { offer_id: 'off1', order_id: O, person_id: people[2].id, response: 'declined' }],
   };
   const ctx = { user_id: 'u1', email: 'admin@test', full_name: role === 'admin' ? 'Admin User' : 'Avi Driver', active: true,
     person_id: role === 'admin' ? null : people[0].id, roles: role === 'admin' ? ['admin'] : ['driver'], settings };
@@ -91,6 +99,10 @@
       contact_name: 'Bracha Washer', contact_phone: '718-555-0102', other_party_name: 'Grandma Cohen', other_party_phone: null, client_label: 'Cohen (K-1001)',
       instructions: null, bag_notes: 'Blue bags', washing_received: false, can_act: true, open_problems: 0 }],
     record_handoff: { event_id: 'e9', exception_id: null, order_status: 'out_for_delivery' },
+    my_offers: role === 'admin' ? [] : [{ offer_id: 'off2', order_no: 1002, task_type: 'pickup', from_street: 'Main Street', to_street: 'Maple Avenue',
+      expected_bags: 4, scheduled_at: iso(3), note: 'Two heavy bags', expires_at: iso(2), created_at: iso(-0.1) }],
+    dispatch_preview: { from_street: 'Maple Avenue', to_street: 'Other St', blocked: null, assignee_id: null },
+    dispatch_task: 'off3', respond_offer: { accepted: true, task_id: 'x' }, cancel_offer: null,
   };
   window.__writes = [];
   function builder(table) {

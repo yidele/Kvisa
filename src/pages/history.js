@@ -17,6 +17,9 @@ export const ACTION_LABELS = {
   'recurring.updated': 'Recurring series edited', 'recurring.generated': 'Order generated from schedule',
   'recurring.series_applied': 'Series change applied', 'recurring.status_changed': 'Series paused / resumed / cancelled',
   'handoff.count_correction': 'Bag count corrected', 'handoff.event_reverted': 'Step undone',
+  'offer.dispatched': 'Dispatched to drivers', 'offer.accepted': 'Driver accepted job', 'offer.declined': 'Driver declined job',
+  'offer.cancelled': 'Offer cancelled', 'offer.expired': 'Offer expired', 'offer.access_revoked': 'Driver access revoked (reassigned)',
+  'task.offers.insert': 'Offer created', 'offer.recipients.insert': 'Driver offered',
   'user.roles_changed': 'User roles changed', 'user.activated': 'User activated', 'user.deactivated': 'User deactivated',
 };
 for (const [k, v] of Object.entries(EVENT_LABELS)) ACTION_LABELS['handoff.' + k] = 'Handoff: ' + v;

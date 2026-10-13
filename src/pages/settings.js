@@ -8,6 +8,7 @@ const NOTIFY = [
   ['assigned', 'New task assignments'], ['reassigned', 'Reassignments'], ['schedule_changed', 'Schedule changes & cancellations'],
   ['upcoming', 'Upcoming tasks'], ['overdue', 'Overdue tasks'], ['washing_completed', 'Washing completed'],
   ['return_ready', 'Return collection ready'], ['delivered', 'Delivery completed'], ['exception', 'Reported exceptions'],
+  ['offer', 'Job offers to drivers'],
 ];
 const ROLE_LABELS = { admin: 'Administrator', dispatcher: 'Dispatcher', driver: 'Driver', volunteer: 'Washing volunteer' };
 
@@ -50,6 +51,15 @@ export async function render(root) {
           <label class="field"><span>Overdue after (minutes late)</span><input type="number" min="0" max="1440" name="overdue_grace_minutes" value="${s.overdue_grace_minutes}"></label>
           <label class="field"><span>“Coming up” reminder (hours before)</span><input type="number" min="0" max="168" name="upcoming_notice_hours" value="${s.upcoming_notice_hours}"></label>
         </div>
+        <button class="btn btn-primary">Save</button></form>`)}
+      ${sec('dispatch', 'Driver dispatch', html`<form data-save="dispatch" novalidate>
+        <label class="check"><input type="checkbox" name="auto_dispatch_return" ${s.auto_dispatch_return ? raw('checked') : ''}>
+          Automatically offer the return pickup to all drivers when washing is marked complete</label>
+        <p class="muted">Off by default: the dispatcher presses “Dispatch return pickup” when ready.</p>
+        <label class="field"><span>Default time an offer stays open (minutes, blank = no limit)</span>
+          <input type="number" min="5" max="10080" name="default_offer_minutes" value="${s.default_offer_minutes ?? ''}"></label>
+        <p class="muted">Before accepting, drivers see only street names (e.g. “Main Street → Maple Avenue”), the stage, bags, time and your note.
+          The exact addresses, contacts and access instructions are sent only to the driver who accepts — enforced by the database.</p>
         <button class="btn btn-primary">Save</button></form>`)}
       ${sec('disc', 'Bag-count discrepancy rules', html`<form data-save="disc">
         <label class="check"><input type="checkbox" name="flag_collection_vs_expected" ${s.flag_collection_vs_expected ? raw('checked') : ''}>
@@ -142,6 +152,12 @@ export async function render(root) {
           await upd({ flag_collection_vs_expected: !!v.flag_collection_vs_expected, require_discrepancy_resolution: !!v.require_discrepancy_resolution });
           break;
         case 'notif': await upd({ notify_kinds: v.notify_kinds || [] }); break;
+        case 'dispatch': {
+          const m = String(v.default_offer_minutes || '').trim();
+          if (m && (!/^\d+$/.test(m) || Number(m) < 5 || Number(m) > 10080)) throw new Error('Offer time must be 5 to 10080 minutes, or blank.');
+          await upd({ auto_dispatch_return: !!v.auto_dispatch_return, default_offer_minutes: m ? Number(m) : null });
+          break;
+        }
         case 'labels': {
           const st = {}; const tt = {};
           for (const k of ORDER_STATUSES) if (v['st_' + k]?.trim()) st[k] = v['st_' + k].trim();

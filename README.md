@@ -15,6 +15,7 @@ with a bag count recorded at every handoff, so you always know where the bags ar
 | `index.html`, `styles.css`, `src/` | The web app (ES modules). `src/pages/` has one file per screen. |
 | `supabase/migrations/` | The database, in order. This is the source of truth for tables, rules and security. |
 | `supabase/tests/business_rules.sql` | 59 database tests of the business rules (run inside a rolled-back transaction). |
+| `supabase/tests/dispatch_offers.sql` | 30 database tests of driver job offers and address privacy. |
 | `tests/unit/` | Unit tests for dates/time zones, validation, CSV (`npm test`). |
 | `tests/e2e/` | Browser smoke tests of every page with a fake database (`npm run test:e2e`). |
 | `docs/` | Operations & deployment, decisions, report definitions. |
@@ -25,7 +26,7 @@ with a bag count recorded at every handoff, so you always know where the bags ar
 |---|---|
 | Administrator | Everything, including Settings, users, roles, categories, reasons. |
 | Dispatcher | Clients, orders, assignments, scheduling, recurring series, exceptions, history, reports. |
-| Driver | Only their own tasks: addresses, contacts, bag counts; record pickups/deliveries; report problems. |
+| Driver | Job offers (street names only) to accept or decline; full addresses only for jobs assigned to them; record pickups/deliveries; report problems. |
 | Washing volunteer | Only their own washing tasks: confirm receipt, start/finish washing, report problems. |
 
 Permissions are enforced **in the database** (row-level security and checked functions), not just by hiding buttons.
@@ -44,7 +45,8 @@ Database tests (in the Supabase SQL editor, or via the Supabase connector):
 ```sql
 -- once, to install the test harness:
 --   paste supabase/tests/business_rules.sql
-select * from kvisa_tests.run();   -- nothing is saved; everything is rolled back
+select * from kvisa_tests.run();          -- business rules; nothing is saved
+select * from kvisa_tests.run_offers();   -- dispatch offers & address privacy
 ```
 
 See [docs/OPERATIONS.md](docs/OPERATIONS.md) for setup, deployment, backups and recovery, and

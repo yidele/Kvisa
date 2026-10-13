@@ -4,6 +4,7 @@ import { html, raw, setHtml, $, $$, on } from '../lib/dom.js';
 import { openModal, confirmAction, toast } from './ui.js';
 import {
   taskLabel, orderNo, dateToZonedParts, zonedToDate, nextActions, parseBagCount, fmtDateTime, EVENT_LABELS,
+  DISPATCH_LABELS, DISPATCH_TONE, dispatchButtonLabel,
 } from '../lib/format.js';
 
 export function roleForTask(type) { return type === 'washing' ? 'washer' : 'driver'; }
@@ -232,3 +233,67 @@ export async function rescheduleModal(order, tasks) {
 }
 
 export { personName };
+
+// ---------------------------------------------------------------- driver job offers
+
+export function dispatchBadge(status) {
+  if (!status) return '';
+  return html`<span class="badge tone-${DISPATCH_TONE[status] || 'neutral'}" title="Driver dispatch">${DISPATCH_LABELS[status] || status}</span>`;
+}
+
+// Offer a driver stage to drivers. Drivers see only the street-to-street route until they accept.
+export async function dispatchModal(taskId, { orderNoValue, taskType } = {}) {
+  const pv = await rpc('dispatch_preview', { p_task_id: taskId });
+  if (pv.blocked) { toast(pv.blocked, 'warn'); return null; }
+  const drivers = peopleWithRole('driver');
+  const s = settings();
+  const def = s.default_offer_minutes ?? '';
+  const minuteOpts = [['', 'No time limit'], ['30', '30 minutes'], ['60', '1 hour'], ['120', '2 hours'], ['240', '4 hours'], ['1440', '24 hours']];
+  if (def && !minuteOpts.find((o) => o[0] === String(def))) minuteOpts.push([String(def), `${def} minutes`]);
+  const body = html`
+    <div class="route-preview" aria-label="What drivers will see">
+      <small class="muted">Drivers will see (before accepting):</small>
+      <div class="route"><strong>${pv.from_street}</strong> <span aria-hidden="true">→</span> <strong>${pv.to_street}</strong></div>
+      <small class="muted">House numbers, apartments, contacts and access instructions are revealed only to the driver who accepts.</small>
+    </div>
+    ${pv.assignee_id ? html`<div class="notice notice-warn">This stage is assigned to <strong>${personName(pv.assignee_id)}</strong>.
+      <label class="check"><input type="checkbox" name="replace"> Remove them and offer it to drivers instead</label></div>` : ''}
+    <fieldset class="field"><legend>Offer to</legend>
+      <label class="check"><input type="radio" name="who" value="all" checked> All active drivers (${drivers.length})</label>
+      <label class="check"><input type="radio" name="who" value="some"> Only the drivers I choose</label>
+      <div class="chips" data-some hidden>${drivers.map((p) => html`<label class="chip sm"><input type="checkbox" name="drivers" value="${p.id}"><span>${p.full_name}</span></label>`)}</div>
+    </fieldset>
+    <label class="field"><span>Offer stays open for</span><select name="minutes">
+      ${minuteOpts.map(([v, l]) => html`<option value="${v}" ${String(def) === v ? raw('selected') : ''}>${l}</option>`)}</select></label>
+    <label class="field"><span>Note for drivers (optional)</span><input name="note" maxlength="200" placeholder="e.g. 2 heavy bags">
+      <small class="hint">Shown before accepting — don't type addresses or phone numbers here.</small></label>`;
+  return openModal({
+    title: `${dispatchButtonLabel(taskType)}${orderNoValue ? ' — ' + orderNo(orderNoValue) : ''}`, body, submitLabel: 'Send to drivers', guardUnsaved: false,
+    onMount(form) {
+      on(form, 'change', 'input[name=who]', () => { $('[data-some]', form).hidden = form.who.value !== 'some'; });
+    },
+    async onSubmit(v, form) {
+      if (pv.assignee_id && !v.replace) throw new Error('Tick "Remove them and offer it to drivers instead", or cancel and use Reassign.');
+      const chosen = [...form.querySelectorAll('input[name=drivers]:checked')].map((x) => x.value);
+      if (v.who === 'some' && !chosen.length) throw new Error('Choose at least one driver.');
+      if (/\b\d{1,6}[a-z]?\s+(\w+\s+){0,3}(st|street|ave|avenue|rd|road|blvd|ln|lane|dr|drive|pl|place|ct|court|pkwy|parkway|way|terrace|ter)\b/i.test(v.note || '') || /\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/.test(v.note || '')) {
+        if (!form.dataset.noteOk) { form.dataset.noteOk = '1'; throw new Error('The note looks like it contains an address or phone number, which drivers would see before accepting. Remove it, or press Send again to keep it.'); }
+      }
+      await rpc('dispatch_task', {
+        p_task_id: taskId, p_person_ids: v.who === 'some' ? chosen : null,
+        p_expires_minutes: v.minutes ? Number(v.minutes) : null, p_note: v.note || null, p_replace_assignee: !!v.replace,
+      });
+      toast('Sent. Drivers can now accept it from their phones.');
+      return true;
+    },
+  });
+}
+
+export async function cancelOfferAction(offerId) {
+  const r = await confirmAction({ title: 'Cancel this offer?', message: 'Drivers will no longer see it. You can dispatch again or assign someone directly.',
+    confirmLabel: 'Cancel offer', danger: true, reasonLabel: 'Reason (optional)' });
+  if (!r) return false;
+  await rpc('cancel_offer', { p_offer_id: offerId, p_reason: r.reason || null });
+  toast('Offer cancelled.');
+  return true;
+}

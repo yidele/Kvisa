@@ -14,7 +14,7 @@ export async function render(root) {
         'Shown in this app only. Email and text messages are not connected.')}
       ${rows.length ? html`<ul class="list notif-list card">${rows.map((n) => html`
         <li class="${n.read_at ? '' : 'unread'}">
-          <a class="row-link" href="${n.order_id ? (roles.staff ? '#/orders/' + n.order_id : '#/my-tasks') : '#/notifications'}" data-open="${n.id}">
+          <a class="row-link" href="${n.kind === 'offer' ? '#/my-tasks?tab=jobs' : n.order_id ? (roles.staff ? '#/orders/' + n.order_id : '#/my-tasks') : '#/notifications'}" data-open="${n.id}">
             <span><strong>${n.title}</strong>${n.body ? html`<br><small>${n.body}</small>` : ''}</span>
             <small class="muted" title="${fmtDateTime(n.created_at, tz())}">${relativeTime(n.created_at)}</small>
           </a></li>`)}</ul>` : emptyState('No notifications', 'You will see new assignments, schedule changes and problems here.')}`);

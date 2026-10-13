@@ -5,7 +5,8 @@ import { pageHeader, statusBadge, loading, errorState, emptyState, pager, toast 
 import {
   ORDER_STATUSES, statusLabel, taskLabel, orderNo, fmtDateTime, fmtDate, relativeTime, zonedToDate, addDays,
 } from '../lib/format.js';
-import { assignModal, recordModal, cancelOrder, reopenOrder, changeBagsModal, rescheduleModal, loadTasks } from '../components/orderActions.js';
+import { assignModal, recordModal, cancelOrder, reopenOrder, changeBagsModal, rescheduleModal, loadTasks, dispatchModal, dispatchBadge } from '../components/orderActions.js';
+import { DRIVER_STAGES, dispatchButtonLabel } from '../lib/format.js';
 import { app } from '../lib/app.js';
 
 const PAGE = 50;
@@ -101,6 +102,7 @@ export async function render(root, { query }) {
         case 'reschedule': changed = await rescheduleModal(o, await loadTasks(o.id)); break;
         case 'cancel': changed = await cancelOrder(o); break;
         case 'reopen': changed = await reopenOrder(o); break;
+        case 'dispatch': changed = await dispatchModal(el.dataset.task, { orderNoValue: o.order_no, taskType: el.dataset.type }); break;
       }
       if (changed) load();
     } catch (err) { toast(err.message, 'error'); }
@@ -127,6 +129,20 @@ export async function render(root, { query }) {
       q = q.order('pickup_at', { ascending: true, nullsFirst: false }).range((f.page - 1) * PAGE, f.page * PAGE - 1);
       const { data, count } = await run(q);
       rowsById.clear();
+      // driver-dispatch state of each order's next driver stage
+      const disp = data.length ? await run(sb.from('task_dispatch').select('*').in('order_id', data.map((o) => o.id))) : [];
+      const nextDrive = {};
+      for (const o of data) {
+        const stages = disp.filter((d) => d.order_id === o.id && DRIVER_STAGES.includes(d.task_type)).sort((a, b) => a.seq - b.seq);
+        nextDrive[o.id] = stages.find((d) => d.task_status !== 'completed' && d.task_status !== 'cancelled') || null;
+      }
+      const dispatchCell = (o) => {
+        const d = nextDrive[o.id];
+        if (!d || o.status === 'cancelled') return html`—`;
+        const ready = !d.blocked_reason && ['not_dispatched', 'declined', 'expired', 'cancelled'].includes(d.dispatch_status);
+        return html`${dispatchBadge(d.dispatch_status)}<br><small class="muted">${taskLabel(d.task_type, settings())}</small>
+          ${ready ? html`<br><button class="btn btn-sm btn-primary" data-act="dispatch" data-id="${o.id}" data-task="${d.task_id}" data-type="${d.task_type}">${dispatchButtonLabel(d.task_type)}</button>` : ''}`;
+      };
       data.forEach((o) => rowsById.set(o.id, o));
       if (!data.length) {
         setHtml(box, emptyState(active ? 'No orders match these filters' : 'No open orders',
@@ -139,7 +155,7 @@ export async function render(root, { query }) {
           <table class="table dispatch-table">
             <thead><tr>
               <th>Order</th><th>Client</th><th>Status</th><th>Bags</th><th>Location</th><th>Next step</th>
-              <th>Driver (pickup / delivery)</th><th>Washer</th><th>Pickup</th><th>Return by</th><th>Updated</th><th><span class="sr-only">Actions</span></th>
+              <th>Driver (pickup / delivery)</th><th>Washer</th><th>Pickup</th><th>Return by</th><th>Driver dispatch</th><th>Updated</th><th><span class="sr-only">Actions</span></th>
             </tr></thead>
             <tbody>${data.map((o) => html`
               <tr class="${o.is_overdue || o.open_exceptions ? 'row-flag' : ''}">
@@ -157,6 +173,7 @@ export async function render(root, { query }) {
                 <td data-label="Washer">${o.washer_name || html`<span class="warn-text">Unassigned</span>`}</td>
                 <td data-label="Pickup">${fmtDateTime(o.pickup_at, tz())}</td>
                 <td data-label="Return by">${fmtDate(o.expected_return_date, tz())}</td>
+                <td data-label="Dispatch">${dispatchCell(o)}</td>
                 <td data-label="Updated"><small>${relativeTime(o.updated_at)}</small></td>
                 <td class="actions">
                   <a class="btn btn-sm" href="#/orders/${o.id}">Open</a>

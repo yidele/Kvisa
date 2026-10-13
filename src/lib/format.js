@@ -253,3 +253,33 @@ export function friendlyError(err) {
   if (/duplicate key/i.test(msg)) return 'That record already exists.';
   return msg;
 }
+
+// ------------------------------------------------------------------
+// Driver job offers ("Dispatch Call")
+// ------------------------------------------------------------------
+export const DRIVER_STAGES = ['pickup', 'dropoff', 'return_collection', 'delivery'];
+
+export const DISPATCH_LABELS = {
+  not_dispatched: 'Not dispatched', available: 'Available for drivers', accepted: 'Accepted', in_progress: 'In progress',
+  completed: 'Completed', declined: 'Declined', expired: 'Expired', cancelled: 'Cancelled', assigned: 'Assigned directly',
+};
+export const DISPATCH_TONE = {
+  not_dispatched: 'neutral', available: 'wait', accepted: 'info', in_progress: 'progress', completed: 'done',
+  declined: 'danger', expired: 'warn', cancelled: 'muted', assigned: 'info',
+};
+export const RESPONSE_LABELS = { pending: 'Waiting', accepted: 'Accepted', declined: 'Declined', withdrawn: 'Withdrawn', expired: 'Expired' };
+
+export function dispatchButtonLabel(taskType) {
+  return { pickup: 'Dispatch call', dropoff: 'Dispatch drop-off', return_collection: 'Dispatch return pickup', delivery: 'Dispatch delivery' }[taskType] || 'Dispatch';
+}
+
+// Same rules as the database's street_only(), used only for previews in staff screens.
+export function streetOnly(addr) {
+  let s = String(addr || '').split(',')[0];
+  s = s.replace(/\s*#.*$/, '');
+  s = s.replace(/\s+(apt|apartment|unit|suite|ste|fl|floor|rm|room|bldg)\b\.?.*$/i, '');
+  s = s.replace(/^\s*(no\.?\s*)?[0-9]+[a-z]?([-/][0-9]+[a-z]?)?\s+/i, '');
+  s = s.replace(/^\s*[0-9]+[a-z]?\s*$/i, '');
+  s = s.trim();
+  return s || 'Address on file';
+}

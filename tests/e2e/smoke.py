@@ -95,6 +95,23 @@ def main():
                 check(f'page renders: {name}', False, f'{e} {errors[:3]}')
             page.screenshot(path=str(SHOTS / f'{name}.png'), full_page=False)
 
+        # dispatcher: Dispatch button and modal showing the masked route
+        page.goto(f'{base}/index.html#/dispatch'); wait_page(page)
+        dt = page.inner_text('main')
+        check('dispatcher shows dispatch status and a "Dispatch return pickup" button after washing', 'driver dispatch' in dt.lower() and 'Dispatch return pickup' in dt, dt[-300:])
+        page.screenshot(path=str(SHOTS / 'dispatcher-dispatch.png'))
+        page.goto(f'{base}/index.html#/orders/{ORDER}'); wait_page(page)
+        check('order page shows dispatch states per stage', 'Driver dispatch' in page.inner_text('main') and 'Declined' in page.inner_text('main') and 'Washing is not completed yet' in page.inner_text('main'))
+        page.click('[data-act=dispatch]')
+        page.wait_for_selector('.modal .route-preview')
+        mtext = page.inner_text('.modal')
+        check('dispatch modal previews street-to-street route', 'Maple Avenue' in mtext and 'Other St' in mtext and 'revealed only to the driver who accepts' in mtext)
+        page.click('.modal button[type=submit]')
+        page.wait_for_selector('.modal', state='detached')
+        sent = [w for w in page.evaluate('window.__writes') if w.get('rpc') == 'dispatch_task']
+        check('dispatch sends the offer to all drivers by default', sent and sent[-1]['args']['p_person_ids'] is None, sent)
+        page.screenshot(path=str(SHOTS / 'order-dispatch.png'))
+
         # escaping of user-supplied text
         page.goto(f'{base}/index.html#/orders/{ORDER}'); wait_page(page)
         check('user text is escaped (no script injection)', '<script>alert(1)</script>' in page.inner_text('main') and not errors, errors[:2])
@@ -138,7 +155,17 @@ def main():
         mob, merr = new_page(browser, base, role='driver', mobile=True)
         mob.goto(f'{base}/index.html#/'); wait_page(mob)
         text = mob.inner_text('main')
-        check('driver lands on My tasks (mobile)', 'My tasks' in text and 'Return collection' in text and not merr, merr[:3])
+        check('driver lands on Available jobs when a job is offered', 'Available jobs (1)' in text and 'Main Street' in text and 'Maple Avenue' in text and not merr, merr[:3])
+        check('job offer shows streets only (no house number)', 'The exact address appears after you accept' in text and not any(ch.isdigit() for ch in text.split('Main Street')[1].split('When')[0]))
+        mob.screenshot(path=str(SHOTS / 'driver-offer.png'))
+        mob.click('button[data-accept="1"]')
+        mob.wait_for_timeout(400)
+        writes = mob.evaluate('window.__writes')
+        acc = [w for w in writes if w.get('rpc') == 'respond_offer']
+        check('Accept call sends an atomic accept to the server', acc and acc[-1]['args'] == {'p_offer_id': 'off2', 'p_accept': True}, acc)
+        mob.goto(f'{base}/index.html#/my-tasks?tab=today'); wait_page(mob)
+        text = mob.inner_text('main')
+        check('driver sees assigned task with exact address (mobile)', 'Return collection' in text and '2 Wash Ave' in text and not merr, merr[:3])
         check('driver nav has no staff pages', mob.query_selector('a[href="#/clients"]') is None and mob.query_selector('a[href="#/settings"]') is None)
         mob.screenshot(path=str(SHOTS / 'driver-mobile.png'))
         mob.click('.big-actions .btn-primary')
