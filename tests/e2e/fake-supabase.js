@@ -20,6 +20,8 @@
     notify_kinds: ['assigned', 'reassigned', 'schedule_changed', 'upcoming', 'overdue', 'washing_completed', 'return_ready', 'delivered', 'exception'],
     cancellation_reasons: ['Client cancelled', 'Other'], correction_reasons: ['Entered by mistake', 'Other'],
     status_labels: {}, task_type_labels: {},
+    wa_enabled: true, wa_group_id: '120363000000000001@g.us', wa_group_name: 'Kvisa Drivers', sms_enabled: false,
+    phone_country_code: '1', msg_send_address: true, msg_post_intro: 'Jobs available — reply privately with the number you can take:',
   };
   const O = '11111111-1111-1111-1111-111111111111';
   const C = '22222222-2222-2222-2222-222222222222';
@@ -79,6 +81,18 @@
       dispatch_status: t.status === 'completed' ? 'completed' : t.task_type === 'return_collection' ? 'declined' : t.assignee_id ? 'assigned' : 'not_dispatched',
       blocked_reason: t.task_type === 'delivery' ? 'Washing is not completed yet' : null })),
     task_offers: [{ id: 'off1', order_id: O, task_id: tasks[3].id, status: 'declined', created_at: iso(-1), accepted_at: null, close_reason: 'Every driver declined' }],
+    job_posts: [{ id: 'jp1', post_no: 1, intro: null, channels: ['whatsapp'], created_at: iso(-2),
+      body: 'Jobs available — reply privately with the number you can take:\n\n1. Return collection — Maple Avenue → Other St — 4 bags\n\nReply privately with the job number (e.g. 2). Reply DONE when you finish.' }],
+    job_post_items: [{ post_id: 'jp1', item_no: 1, offer_id: 'off1', task_id: tasks[3].id, order_id: O, covered_person_id: people[0].id, covered_at: iso(-1.5),
+      task_offers: { status: 'accepted', expires_at: null }, order_tasks: { task_type: 'return_collection' }, orders: { order_no: 1001 } }],
+    message_outbox: [
+      { id: 'mo1', channel: 'whatsapp', to_kind: 'group', to_address: '120363000000000001@g.us', person_id: null, body: 'Jobs available <b>x</b>\n1. Return collection', mentions: [], purpose: 'post', status: 'sent', attempts: 1, error: null, created_at: iso(-2) },
+      { id: 'mo2', channel: 'whatsapp', to_kind: 'group', to_address: '120363000000000001@g.us', person_id: people[0].id, body: '1 covered @17185550101', mentions: ['17185550101'], purpose: 'covered', status: 'failed', attempts: 3, error: 'HTTP 401: bad token', created_at: iso(-1.5) },
+    ],
+    message_inbox: [
+      { id: 'mi1', channel: 'whatsapp', provider_message_id: 'w1', from_address: '17185550101', person_id: people[0].id, body: '1', outcome: 'take', detail: 'Job 1 is yours: Return collection (K-1001)\nBags: 4', received_at: iso(-1.5) },
+      { id: 'mi2', channel: 'sms', provider_message_id: 's1', from_address: '19995550000', person_id: null, body: 'who is this? <script>alert(2)</script>', outcome: 'unknown_sender', detail: null, received_at: iso(-1) },
+    ],
     offer_recipients: [{ offer_id: 'off1', order_id: O, person_id: people[0].id, response: 'declined' }, { offer_id: 'off1', order_id: O, person_id: people[2].id, response: 'declined' }],
   };
   const ctx = { user_id: 'u1', email: 'admin@test', full_name: role === 'admin' ? 'Admin User' : 'Avi Driver', active: true,
@@ -103,6 +117,9 @@
       expected_bags: 4, scheduled_at: iso(3), note: 'Two heavy bags', expires_at: iso(2), created_at: iso(-0.1) }],
     dispatch_preview: { from_street: 'Maple Avenue', to_street: 'Other St', blocked: null, assignee_id: null },
     dispatch_task: 'off3', respond_offer: { accepted: true, task_id: 'x' }, cancel_offer: null,
+    job_post_preview: { body: 'Jobs available — reply privately with the number you can take:\n\n1. Return collection — Maple Avenue → Other St — 3 bags\n\nReply privately with the job number (e.g. 2). Reply DONE when you finish.', items: [] },
+    post_jobs: { post_id: 'jp2', post_no: 2, jobs: 1, first_no: 1, last_no: 1, whatsapp: true, sms: 0, body: 'x' },
+    outbox_retry: null, outbox_cancel: null,
   };
   window.__writes = [];
   function builder(table) {
@@ -138,6 +155,14 @@
       return {
         from: (t) => builder(t),
         rpc: (name, args) => { window.__writes.push({ rpc: name, args }); return Promise.resolve({ data: rpcs[name] ?? null, error: null }); },
+        functions: {
+          invoke: (name, { body } = {}) => {
+            window.__writes.push({ fn: name, body });
+            const out = { send: { sent: 1, failed: 0 }, status: { whatsapp: true, sms: false, webhook: true },
+              groups: { groups: [{ id: '120363000000000001@g.us', name: 'Kvisa Drivers' }, { id: '120363000000000002@g.us', name: 'Family' }] } };
+            return Promise.resolve({ data: out[body?.action] ?? null, error: null });
+          },
+        },
         auth: {
           getSession: () => Promise.resolve({ data: { session } }),
           onAuthStateChange: (cb) => { setTimeout(() => cb(localStorage.getItem('fakeLoggedOut') ? 'INITIAL_SESSION' : 'INITIAL_SESSION', localStorage.getItem('fakeLoggedOut') ? null : session), 0); return { data: { subscription: { unsubscribe() {} } } }; },

@@ -8,6 +8,7 @@ import {
 import { assignModal, recordModal, cancelOrder, reopenOrder, changeBagsModal, rescheduleModal, loadTasks, dispatchModal, dispatchBadge } from '../components/orderActions.js';
 import { DRIVER_STAGES, dispatchButtonLabel } from '../lib/format.js';
 import { app } from '../lib/app.js';
+import { postJobsModal } from '../components/postJobs.js';
 
 const PAGE = 50;
 
@@ -45,7 +46,7 @@ export async function render(root, { query }) {
   const active = ['q', 'from', 'to', 'category', 'status', 'driver', 'washer', 'filter'].some((k) => f[k]) || f.closed;
 
   setHtml(root, html`
-    ${pageHeader('Dispatcher', html`<a class="btn btn-primary" href="#/orders/new">+ New order</a>`)}
+    ${pageHeader('Dispatcher', html`<button class="btn" data-action="post-jobs">Post jobs</button> <a class="btn btn-primary" href="#/orders/new">+ New order</a>`)}
     <details class="card filter-box" ${active || window.matchMedia('(min-width: 901px)').matches ? raw('open') : ''}>
     <summary>Filters${active ? ' (active)' : ''}</summary>
     <form class="filters card" data-filters>
@@ -81,6 +82,9 @@ export async function render(root, { query }) {
   });
   on(root, 'click', '[data-action=page]', (e, el) => app.navigate(toQuery({ ...f, page: Number(el.dataset.page) })));
   on(root, 'click', '[data-action=reload]', () => load());
+  on(root, 'click', '[data-action=post-jobs]', async () => {
+    try { if (await postJobsModal()) load(); } catch (err) { toast(err.message, 'error'); }
+  });
 
   const rowsById = new Map();
   on(root, 'click', '[data-act]', async (e, el) => {

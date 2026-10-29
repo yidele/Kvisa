@@ -24,6 +24,15 @@ jobs:
         with: { node-version: 22 }
       - run: npm run check
       - run: npm test
+      - name: Database tests (migrations + SQL tests on a throwaway local Postgres)
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres createuser --superuser "$USER"
+          bash scripts/test-db.sh
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.x }
+      - name: Type-check the messaging Edge Function
+        run: deno check supabase/functions/messaging/index.ts
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - run: pip install playwright==1.56.0 && python -m playwright install --with-deps chromium

@@ -17,6 +17,17 @@ export async function rpc(name, args = {}) {
   return data;
 }
 
+// The "messaging" Edge Function (WhatsApp/SMS sender). Provider keys stay on the server.
+export async function messaging(action) {
+  const { data, error } = await sb.functions.invoke('messaging', { body: { action } });
+  if (error) {
+    let msg = error.message;
+    try { msg = (await error.context.json()).error || msg; } catch { /* not a JSON error body */ }
+    throw new Error(msg);
+  }
+  return data;
+}
+
 // Run a query builder and unwrap; throws AppError on failure.
 export async function run(builder) {
   const { data, error, count } = await builder;

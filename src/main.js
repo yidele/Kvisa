@@ -18,6 +18,7 @@ const routes = [
   { path: /^\/drivers$/, page: () => import('./pages/people.js'), staff: true, props: { role: 'driver' } },
   { path: /^\/people\/([0-9a-f-]{36}|new)$/, page: () => import('./pages/person.js'), staff: true, params: ['id'] },
   { path: /^\/history$/, page: () => import('./pages/history.js'), staff: true },
+  { path: /^\/messages$/, page: () => import('./pages/messages.js'), staff: true },
   { path: /^\/reports$/, page: () => import('./pages/reports.js'), staff: true },
   { path: /^\/settings$/, page: () => import('./pages/settings.js'), admin: true },
   { path: /^\/my-tasks$/, page: () => import('./pages/mytasks.js') },
@@ -80,7 +81,7 @@ function navItems() {
   if (roles.staff) {
     items.push(['/', 'Dashboard', 'grid'], ['/dispatch', 'Dispatcher', 'list'], ['/calendar', 'Calendar', 'cal'],
       ['/clients', 'Clients', 'users'], ['/volunteers', 'Volunteers', 'drop'], ['/drivers', 'Drivers', 'car'],
-      ['/history', 'Recent History', 'clock'], ['/reports', 'Reports', 'chart']);
+      ['/messages', 'Messages', 'chat'], ['/history', 'Recent History', 'clock'], ['/reports', 'Reports', 'chart']);
   }
   if (roles.field) items.push([roles.staff ? '/my-tasks' : '/', 'My tasks', 'check']);
   if (roles.admin) items.push(['/settings', 'Settings', 'gear']);

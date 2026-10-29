@@ -6,6 +6,7 @@
   "scripts": {
     "check": "for f in $(find src -name '*.js'); do node --check \"$f\" || exit 1; done",
     "test": "node --test tests/unit/*.test.js",
-    "test:e2e": "python3 tests/e2e/smoke.py"
+    "test:e2e": "python3 tests/e2e/smoke.py",
+    "test:db": "bash scripts/test-db.sh"
   }
 }

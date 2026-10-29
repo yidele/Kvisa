@@ -11,7 +11,8 @@ function personForm(p, presetRole) {
   return html`
     <div class="row">
       <label class="field grow"><span>Full name *</span><input name="full_name" value="${p.full_name || ''}" required></label>
-      <label class="field"><span>Phone</span><input name="phone" type="tel" value="${p.phone || ''}"></label>
+      <label class="field"><span>Phone</span><input name="phone" type="tel" value="${p.phone || ''}">
+        <small class="hint">Also used for WhatsApp and texts. Add “+” and the country code if it’s a foreign number.</small></label>
       <label class="field"><span>Email</span><input name="email" type="email" value="${p.email || ''}"></label>
     </div>
     <fieldset class="field"><legend>Roles *</legend><div class="chips">

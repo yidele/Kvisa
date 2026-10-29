@@ -30,6 +30,7 @@ STAFF_PAGES = [
     ('drivers', '#/drivers', 'Drivers'),
     ('person', f'#/people/{PERSON}', 'Bracha Washer'),
     ('history', '#/history', 'Recent History'),
+    ('messages', '#/messages', 'Messages'),
     ('reports', '#/reports', 'Reports'),
     ('settings', '#/settings', 'Settings'),
     ('notifications', '#/notifications', 'Notifications'),
@@ -111,6 +112,44 @@ def main():
         sent = [w for w in page.evaluate('window.__writes') if w.get('rpc') == 'dispatch_task']
         check('dispatch sends the offer to all drivers by default', sent and sent[-1]['args']['p_person_ids'] is None, sent)
         page.screenshot(path=str(SHOTS / 'order-dispatch.png'))
+
+        # post jobs to WhatsApp: numbered preview, channels, and the post call
+        page.goto(f'{base}/index.html#/dispatch'); wait_page(page)
+        page.click('[data-action=post-jobs]')
+        page.wait_for_selector('.modal .post-jobs')
+        page.wait_for_function("() => (document.querySelector('[data-preview]')?.textContent || '').includes('1. Return collection')", timeout=3000)
+        mtext = page.inner_text('.modal')
+        check('post jobs lists only ready, unassigned jobs', 'Return collection' in mtext and 'Final delivery' not in mtext.split('Message preview')[0], mtext[:300])
+        check('post jobs shows WhatsApp group on and SMS off until set up', page.is_checked('.modal input[name=ch_whatsapp]') and page.is_disabled('.modal input[name=ch_sms]') and 'Kvisa Drivers' in mtext)
+        page.screenshot(path=str(SHOTS / 'post-jobs.png'))
+        page.click('.modal button[type=submit]')
+        page.wait_for_selector('.modal', state='detached')
+        writes = page.evaluate('window.__writes')
+        posted = [w for w in writes if w.get('rpc') == 'post_jobs']
+        check('post sends the chosen jobs to the WhatsApp group', posted and posted[-1]['args']['p_channels'] == ['whatsapp'] and posted[-1]['args']['p_task_ids'] == ['33333333-3333-3333-3333-333333333334'], posted)
+        check('posting triggers sending right away', any(w.get('fn') == 'messaging' and w['body'] == {'action': 'send'} for w in writes))
+
+        # messages page: covered jobs, failed sends can be retried, incoming text is escaped
+        errors.clear()
+        page.goto(f'{base}/index.html#/messages'); wait_page(page)
+        mt = page.inner_text('main')
+        check('messages page shows posts, replies and sends', 'Covered' in mt and 'Avi Driver' in mt and 'Took a job' in mt and 'Unknown number' in mt and 'HTTP 401: bad token' in mt, mt[:400])
+        check('incoming message text is escaped', '<script>alert(2)</script>' in mt and not errors, errors[:2])
+        page.click('[data-retry=mo2]'); page.wait_for_timeout(300)
+        check('failed message can be sent again', any(w.get('rpc') == 'outbox_retry' and w['args'] == {'p_id': 'mo2'} for w in page.evaluate('window.__writes')))
+
+        # settings: WhatsApp group picker
+        page.goto(f'{base}/index.html#/settings'); wait_page(page)
+        page.click('#messaging summary')
+        page.wait_for_function("() => (document.querySelector('[data-msg-status]')?.textContent || '').includes('WhatsApp: connected')", timeout=3000)
+        page.click('[data-action=load-groups]')
+        page.wait_for_function("() => document.querySelectorAll('[data-groups] option').length === 3", timeout=3000)
+        page.select_option('[data-groups]', '120363000000000002@g.us')
+        page.click('#messaging button.btn-primary')
+        page.wait_for_timeout(400)
+        upd = [w for w in page.evaluate('window.__writes') if w.get('table') == 'organization_settings' and w.get('op') == 'update']
+        check('settings save the chosen WhatsApp group', upd and upd[-1]['values']['wa_group_id'] == '120363000000000002@g.us' and upd[-1]['values']['wa_group_name'] == 'Family', upd[-1:] if upd else upd)
+        page.screenshot(path=str(SHOTS / 'settings-messaging.png'))
 
         # escaping of user-supplied text
         page.goto(f'{base}/index.html#/orders/{ORDER}'); wait_page(page)

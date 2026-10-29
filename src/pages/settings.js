@@ -1,5 +1,6 @@
 // Administrator settings. Every value here is stored in the database, not hard-coded.
-import { sb, rpc, run, state, loadContext, loadCategories, loadPeople, peopleWithRole } from '../lib/api.js';
+import { sb, rpc, run, state, loadContext, loadCategories, loadPeople, peopleWithRole, messaging } from '../lib/api.js';
+import { SUPABASE_URL } from '../config.js';
 import { html, raw, setHtml, $, on, formValues } from '../lib/dom.js';
 import { pageHeader, loading, errorState, emptyState, toast, confirmAction } from '../components/ui.js';
 import { DEFAULT_STATUS_LABELS, DEFAULT_TASK_LABELS, ORDER_STATUSES, TASK_TYPES } from '../lib/format.js';
@@ -61,6 +62,34 @@ export async function render(root) {
         <p class="muted">Before accepting, drivers see only street names (e.g. “Main Street → Maple Avenue”), the stage, bags, time and your note.
           The exact addresses, contacts and access instructions are sent only to the driver who accepts — enforced by the database.</p>
         <button class="btn btn-primary">Save</button></form>`)}
+      ${sec('messaging', 'WhatsApp & text messages', html`<form data-save="messaging" novalidate>
+        <p data-msg-status class="muted">Checking the connection…</p>
+        <p class="muted">Post open jobs to your WhatsApp group and/or by text. Drivers reply privately with the job number to take it,
+          and DONE when finished — the app assigns, replies with the details, posts “2 covered @name” in the group and records the handoff.</p>
+        <label class="check"><input type="checkbox" name="wa_enabled" ${s.wa_enabled ? raw('checked') : ''}> Post to a WhatsApp group</label>
+        <div class="row">
+          <label class="field grow"><span>WhatsApp group</span>
+            <select name="wa_group_pick" data-groups>
+              ${s.wa_group_id ? html`<option value="${s.wa_group_id}" selected>${s.wa_group_name || s.wa_group_id}</option>` : html`<option value="">— press “Load my groups” —</option>`}
+            </select></label>
+          <button type="button" class="btn" data-action="load-groups">Load my groups</button>
+        </div>
+        <input type="hidden" name="wa_group_name" value="${s.wa_group_name || ''}">
+        <label class="check"><input type="checkbox" name="sms_enabled" ${s.sms_enabled ? raw('checked') : ''}> Send job posts by text message (SMS) to each driver</label>
+        <div class="row">
+          <label class="field"><span>Country code for local phone numbers</span><input name="phone_country_code" inputmode="numeric" maxlength="4" value="${s.phone_country_code || '1'}">
+            <small class="hint">Phones on people's profiles without a “+” are taken as this country (1 = US/Canada).</small></label>
+        </div>
+        <label class="check"><input type="checkbox" name="msg_send_address" ${s.msg_send_address !== false ? raw('checked') : ''}>
+          Send the full address and contact to the driver who takes a job (privately)</label>
+        <p class="muted">Off: they get street names only and must open the app for the address.</p>
+        <label class="field"><span>Default first line of a job post</span><textarea name="msg_post_intro" rows="2" maxlength="500">${s.msg_post_intro || ''}</textarea></label>
+        <details><summary class="muted">Webhook addresses (for setup)</summary>
+          <p class="webhook">WhatsApp (Whapi.Cloud): <code>${SUPABASE_URL}/functions/v1/messaging?hook=whatsapp&amp;secret=YOUR_SECRET</code></p>
+          <p class="webhook">SMS (Twilio, “A message comes in”): <code>${SUPABASE_URL}/functions/v1/messaging?hook=sms&amp;secret=YOUR_SECRET</code></p>
+          <p class="muted">YOUR_SECRET is the MESSAGING_WEBHOOK_SECRET you set for the function. Full steps: docs/OPERATIONS.md §8.</p>
+        </details>
+        <button class="btn btn-primary">Save</button></form>`)}
       ${sec('disc', 'Bag-count discrepancy rules', html`<form data-save="disc">
         <label class="check"><input type="checkbox" name="flag_collection_vs_expected" ${s.flag_collection_vs_expected ? raw('checked') : ''}>
           Flag a discrepancy when the bags collected differ from the number the client said</label>
@@ -69,7 +98,7 @@ export async function render(root) {
         <p class="muted">Differences between later handoffs (e.g. driver delivered 4, washer received 3) are always flagged. Failed pickups and missing bags always block completion.</p>
         <button class="btn btn-primary">Save</button></form>`)}
       ${sec('notif', 'Notifications', html`<form data-save="notif">
-        <p class="muted">In-app notifications (the bell). Email and SMS are not connected yet — no messages are sent outside the app.</p>
+        <p class="muted">In-app notifications (the bell). Job posts by WhatsApp and text are set up under “WhatsApp & text messages”.</p>
         <div class="chips">${NOTIFY.map(([k, l]) => html`<label class="chip"><input type="checkbox" name="notify_kinds" value="${k}" ${s.notify_kinds.includes(k) ? raw('checked') : ''}><span>${l}</span></label>`)}</div>
         <button class="btn btn-primary">Save</button></form>`)}
       ${sec('cats', 'Client categories', html`<form data-save="cats">
@@ -152,6 +181,16 @@ export async function render(root) {
           await upd({ flag_collection_vs_expected: !!v.flag_collection_vs_expected, require_discrepancy_resolution: !!v.require_discrepancy_resolution });
           break;
         case 'notif': await upd({ notify_kinds: v.notify_kinds || [] }); break;
+        case 'messaging': {
+          const cc = String(v.phone_country_code || '').trim();
+          if (!/^[1-9]\d{0,3}$/.test(cc)) throw new Error('Country code must be 1 to 4 digits, e.g. 1 or 972.');
+          if (v.wa_enabled && !v.wa_group_pick) throw new Error('Choose the WhatsApp group (press “Load my groups”).');
+          const opt = form.querySelector('[data-groups] option:checked');
+          await upd({ wa_enabled: !!v.wa_enabled, sms_enabled: !!v.sms_enabled, phone_country_code: cc,
+            wa_group_id: v.wa_group_pick || null, wa_group_name: v.wa_group_pick ? (opt?.textContent.trim() || v.wa_group_name || null) : null,
+            msg_send_address: !!v.msg_send_address, msg_post_intro: (v.msg_post_intro || '').trim() || 'Jobs available — reply privately with the number you can take:' });
+          break;
+        }
         case 'dispatch': {
           const m = String(v.default_offer_minutes || '').trim();
           if (m && (!/^\d+$/.test(m) || Number(m) < 5 || Number(m) > 10080)) throw new Error('Offer time must be 5 to 10080 minutes, or blank.');
@@ -192,6 +231,7 @@ export async function render(root) {
       await loadContext();
       toast('Saved.');
       await draw();
+      showMessagingStatus();
       const sec = form.dataset.save === 'invite' ? 'users' : form.dataset.save;
       root.querySelector('#' + sec)?.setAttribute('open', '');
     } catch (err) { toast(err.message, 'error'); }
@@ -214,6 +254,30 @@ export async function render(root) {
     } catch (err) { toast(err.message, 'error'); el.disabled = false; }
   });
 
+  on(root, 'click', '[data-action=load-groups]', async (e, el) => {
+    el.disabled = true;
+    try {
+      const { groups } = await messaging('groups');
+      const sel = root.querySelector('[data-groups]');
+      const cur = sel.value;
+      if (!groups.length) { toast('No groups found for the connected WhatsApp number.', 'warn'); return; }
+      setHtml(sel, html`<option value="">— choose a group —</option>${groups.map((g) => html`<option value="${g.id}" ${g.id === cur ? raw('selected') : ''}>${g.name}</option>`)}`);
+    } catch (err) { toast(err.message, 'error'); }
+    finally { el.disabled = false; }
+  });
+
+  async function showMessagingStatus() {
+    const box = root.querySelector('[data-msg-status]');
+    if (!box) return;
+    try {
+      const st = await messaging('status');
+      const part = (ok, name) => ok ? `${name}: connected` : `${name}: not connected`;
+      box.textContent = [part(st.whatsapp, 'WhatsApp'), part(st.sms, 'Text messages'), st.webhook ? 'Replies: on' : 'Replies: webhook secret not set'].join(' · ');
+    } catch (err) {
+      box.textContent = 'The messaging service is not installed yet — see docs/OPERATIONS.md §8. (' + err.message + ')';
+    }
+  }
+
   on(root, 'click', '[data-revoke]', async (e, el) => {
     const ok = await confirmAction({ title: 'Revoke invitation?', message: `${el.dataset.revoke} will no longer be able to create an account.`, confirmLabel: 'Revoke', danger: true });
     if (!ok) return;
@@ -225,5 +289,5 @@ export async function render(root) {
   });
 
   on(root, 'click', '[data-action=reload]', () => draw().catch((e) => setHtml(root, errorState(e))));
-  try { await draw(); } catch (err) { setHtml(root, errorState(err)); }
+  try { await draw(); showMessagingStatus(); } catch (err) { setHtml(root, errorState(err)); }
 }
