@@ -327,10 +327,12 @@ def main():
         so, soerr = new_page(browser, base, logged_out=True)
         so.goto(f'{base}/tablet/')
         so.wait_for_selector('.auth-card form')
-        check('signed-out tablet app shows its own sign-in', 'Kvisa Tablet' in so.inner_text('.auth-card') and not soerr, soerr[:3])
+        check('signed-out tablet app offers sign in and create account', 'Create account' in so.inner_text('.auth-card') and not soerr, soerr[:3])
         so.fill('input[name=email]', 'x@y.z'); so.fill('input[name=password]', 'nope'); so.click('button[type=submit]')
         so.wait_for_selector('.notice-error')
         check('tablet sign-in explains a wrong password', 'incorrect' in so.inner_text('.notice-error') and so.input_value('input[name=email]') == 'x@y.z')
+        so.click('[data-mode=signup]')
+        check('tablet app can create an invited account', so.query_selector('form[data-form=signup] input[name=password2]') is not None)
         so.screenshot(path=str(SHOTS / 'tablet-signin.png'))
         so.close()
 

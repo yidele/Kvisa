@@ -1,12 +1,12 @@
 // Tablet app (tablet/index.html): sign in once, then the walk-up screen fills the window.
 // Works with a Tablet account, or with an administrator/dispatcher account for trying it out.
 import { sb, state, roles, loadContext } from './lib/api.js';
-import { html, setHtml, $, on, formValues } from './lib/dom.js';
-import { friendlyError } from './lib/format.js';
+import { html, setHtml, $, on } from './lib/dom.js';
 import { errorState } from './components/ui.js';
 
 let cleanup = null;
 let starting = false;
+let recovering = false;
 
 function stop() {
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
@@ -19,35 +19,11 @@ function message(title, text) {
   $('[data-action=sign-out]').onclick = () => sb.auth.signOut();
 }
 
-function showSignIn(msg) {
+// Same sign-in screen as the main site: sign in, create an (invited) account, or reset a password.
+async function showSignIn() {
   stop();
-  setHtml(document.body, html`
-    <div class="auth-wrap"><div class="card auth-card">
-      <div class="brand brand-lg"><span class="logo" aria-hidden="true">K</span><span>Kvisa Tablet</span></div>
-      <p class="muted">Sign in once with the tablet's account (or your own Kvisa account to try it out).
-        The tablet stays signed in after that.</p>
-      ${msg ? html`<div class="notice notice-error" role="alert">${msg}</div>` : ''}
-      <form novalidate>
-        <label class="field"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
-        <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
-        <button class="btn btn-primary btn-block btn-lg" type="submit">Sign in</button>
-      </form>
-    </div></div>`);
-  const form = $('form');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const v = formValues(form);
-    const btn = $('[type=submit]', form);
-    btn.disabled = true;
-    try {
-      if (!v.email || !v.password) throw new Error('Enter the email and password.');
-      const { error } = await sb.auth.signInWithPassword({ email: v.email.trim(), password: v.password });
-      if (error) throw error;
-    } catch (err) {
-      showSignIn(friendlyError(err));
-      $('input[name=email]').value = v.email || '';
-    }
-  });
+  const mod = await import('./pages/login.js');
+  mod.render(document.body);
 }
 
 async function start() {
@@ -71,6 +47,14 @@ async function start() {
 sb.auth.onAuthStateChange((event, session) => {
   state.session = session;
   setTimeout(async () => {
+    if (event === 'PASSWORD_RECOVERY') {
+      recovering = true;
+      stop();
+      const m = await import('./pages/login.js');
+      m.renderReset(document.body, () => { recovering = false; start(); });
+      return;
+    }
+    if (recovering) return;
     if (!session) { state.ctx = null; showSignIn(); return; }
     if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && !state.ctx && !starting) {
       starting = true;
