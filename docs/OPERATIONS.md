@@ -59,7 +59,7 @@ live project. To change the database:
 1. Add a new file, e.g. `supabase/migrations/008_<what>.sql` (never edit an applied migration).
 2. Apply it with the Supabase connector (`apply_migration`), the Supabase CLI (`supabase db push`), or by pasting it into
    the SQL editor.
-3. Run `select * from kvisa_tests.run();` and the Supabase **security advisor** afterwards.
+3. Run `select * from kvisa_tests.run();` (plus `run_offers()` and `run_kiosk()`) and the Supabase **security advisor** afterwards.
 
 To rebuild the database from scratch in a new project: apply every file in order, then install
 `supabase/tests/business_rules.sql` and run the tests.
@@ -86,13 +86,31 @@ To rebuild the database from scratch in a new project: apply every file in order
 **History is append-only:** audit entries and handoff events cannot be changed or deleted, even by the database owner,
 without first disabling those triggers. Do that only during a documented restore.
 
-## 8. Notifications
+## 8. Walk-up tablet for meshulachim
+
+1. **Settings → Client categories:** fill in *Default pickup address* for Meshilach (where the bags are dropped off).
+   Tablet orders use it as the pickup address. (If blank, the organization address is used.)
+2. **Settings → Tablet:** check the category, the most bags per request, and the **label size** of your printer.
+3. **Settings → Users → Invite someone:** an email you control (e.g. `tablet@yourdomain`), role **Tablet** only, no person record.
+4. On the tablet, open the Kvisa site, choose *Create account* with that email, then sign in. It opens straight into the
+   walk-up screen and stays signed in.
+5. **Lock the tablet to that page.** Android: install *Fully Kiosk Browser*, set the Kvisa site as the start page and turn
+   on kiosk mode (or use Android *App pinning* with Chrome). iPad: *Settings → Accessibility → Guided Access*.
+   Windows: Chrome with `--kiosk --kiosk-printing` prints labels with no dialog at all.
+6. **Printer:** connect the label printer to the tablet (Wi-Fi/Bluetooth/USB) and print one test label from the screen.
+   On Android and iPad the browser shows a print dialog: tap *Print* once per request.
+7. **To leave tablet mode:** tap the **K** logo 5 times and type the tablet account's password.
+
+Staff can preview the screen from Settings → Tablet → *Open the tablet screen* (tap the logo 5 times to come back).
+Every tablet request appears in the Dispatcher as a normal *Requested* order and in the bell as "New tablet request".
+
+## 9. Notifications
 
 In-app notifications (the bell) are live. Email/SMS are **not** connected; nothing is sent outside the app.
 The table `notification_outbox` is ready for a future server-side sender (e.g. a Supabase Edge Function using
 Resend or Twilio, with the provider key stored as an Edge Function secret — never in front-end code).
 
-## 9. Monitoring
+## 10. Monitoring
 
 - Supabase dashboard → **Logs** for API/database errors.
 - Supabase dashboard → **Advisors** (security & performance) after any schema change.

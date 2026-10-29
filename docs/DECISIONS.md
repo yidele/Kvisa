@@ -27,3 +27,11 @@
 | When a stage can be dispatched | Pickup / drop-off: a washer is assigned and both addresses exist. Return collection / final delivery: washing is completed. | Spec §1, §3. |
 | Automatic return dispatch | Off by default; an administrator can turn it on in Settings → Driver dispatch. | Spec §3. |
 | Expiry | Offers past their time limit are closed automatically the next time anyone looks at offers. | No server cron on the free plan. |
+| Walk-up tablet login | A separate **Tablet** role whose only power is `kiosk_submit()`. No table policy grants it anything, so a person at the tablet cannot see other clients or orders even with developer tools. | The tablet is unattended in a public room. |
+| Matching returning meshulachim | By the last 9 digits of the phone number, so `052-123-4567` and `+972 52-123-4567` are the same person. Prefers an active client in the tablet category. The client's saved name is not overwritten; the name typed is kept on the order. An inactive client who comes back is reactivated rather than duplicated. | One record per person, as requested; typing differences don't create duplicates. |
+| Tablet order details | Pickup address = the tablet category's default pickup address, else the organization address. Pickup time = now, or today's default pickup time if that is later. Status starts at *Requested*; staff get a "New tablet request" notification. | The bags are already at the drop-off point. |
+| Double taps / lost replies | The tablet sends a request key; the same key always returns the same order. | Flaky Wi-Fi must never create two orders. |
+| Abuse limit | At most 30 tablet requests per 10 minutes. | Cheap protection for an unattended screen. |
+| Labels | Printed from the browser, one page per bag, page size from Settings (4×6, 62 mm Brother, small Dymo, or full page). | Works with any printer the tablet can print to; no extra software. |
+| Leaving tablet mode | Tap the K logo 5 times, then type the tablet account's password. Staff previewing the screen leave without a password. | Guests can't get out; the office can. |
+| Languages | The tablet screen is in Hebrew (default) and English, and resets to Hebrew after each person. Labels are in English for the office. | The meshulachim are from Israel. |

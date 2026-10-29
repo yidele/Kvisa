@@ -36,6 +36,9 @@ export const roles = {
   get admin() { return roles.has('admin'); },
   get staff() { return roles.has('admin') || roles.has('dispatcher'); },
   get field() { return roles.has('driver') || roles.has('volunteer'); },
+  get kiosk() { return roles.has('kiosk'); },
+  // A tablet login that can do nothing but the walk-up screen.
+  get kioskOnly() { return roles.kiosk && !roles.staff && !roles.field; },
 };
 
 export function tz() { return state.ctx?.settings?.time_zone || 'America/New_York'; }

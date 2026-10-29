@@ -3,14 +3,15 @@ import { sb, rpc, run, state, loadContext, loadCategories, loadPeople, peopleWit
 import { html, raw, setHtml, $, on, formValues } from '../lib/dom.js';
 import { pageHeader, loading, errorState, emptyState, toast, confirmAction } from '../components/ui.js';
 import { DEFAULT_STATUS_LABELS, DEFAULT_TASK_LABELS, ORDER_STATUSES, TASK_TYPES } from '../lib/format.js';
+import { LABEL_SIZES } from '../lib/kiosk.js';
 
 const NOTIFY = [
   ['assigned', 'New task assignments'], ['reassigned', 'Reassignments'], ['schedule_changed', 'Schedule changes & cancellations'],
   ['upcoming', 'Upcoming tasks'], ['overdue', 'Overdue tasks'], ['washing_completed', 'Washing completed'],
   ['return_ready', 'Return collection ready'], ['delivered', 'Delivery completed'], ['exception', 'Reported exceptions'],
-  ['offer', 'Job offers to drivers'],
+  ['offer', 'Job offers to drivers'], ['kiosk_request', 'New requests from the tablet'],
 ];
-const ROLE_LABELS = { admin: 'Administrator', dispatcher: 'Dispatcher', driver: 'Driver', volunteer: 'Washing volunteer' };
+const ROLE_LABELS = { admin: 'Administrator', dispatcher: 'Dispatcher', driver: 'Driver', volunteer: 'Washing volunteer', kiosk: 'Tablet (walk-up screen)' };
 
 export async function render(root) {
   async function draw() {
@@ -23,6 +24,8 @@ export async function render(root) {
     ]);
     await loadPeople(true);
     const zones = (Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [s.time_zone]);
+    const kioskCat = cats.find((c) => c.id === s.kiosk_category_id);
+    const kioskNoAddress = !(kioskCat?.default_pickup_address || s.org_address);
     const rolesOf = (uid) => uroles.filter((r) => r.user_id === uid && r.active).map((r) => r.role);
     const sec = (id, title, body, open) => html`<details class="card settings-section" id="${id}" ${open ? raw('open') : ''}>
       <summary><strong>${title}</strong></summary><div class="settings-body">${body}</div></details>`;
@@ -61,6 +64,21 @@ export async function render(root) {
         <p class="muted">Before accepting, drivers see only street names (e.g. “Main Street → Maple Avenue”), the stage, bags, time and your note.
           The exact addresses, contacts and access instructions are sent only to the driver who accepts — enforced by the database.</p>
         <button class="btn btn-primary">Save</button></form>`)}
+      ${sec('kiosk', 'Tablet (walk-up screen)', html`<form data-save="kiosk" novalidate>
+        <p class="muted">Meshulachim type their name, phone and number of bags on the tablet. Kvisa finds them by phone number
+          (or adds them as a new client), opens an order, and prints one label per bag.</p>
+        <div class="row">
+          <label class="field"><span>New tablet clients go in this category</span><select name="kiosk_category_id">
+            ${cats.filter((c) => c.active || c.id === s.kiosk_category_id).map((c) => html`<option value="${c.id}" ${c.id === s.kiosk_category_id ? raw('selected') : ''}>${c.label}</option>`)}</select></label>
+          <label class="field"><span>Most bags per request</span><input type="number" min="1" max="100" name="kiosk_max_bags" value="${s.kiosk_max_bags ?? 20}"></label>
+          <label class="field"><span>Label size</span><select name="label_size">
+            ${Object.entries(LABEL_SIZES).map(([k, v]) => html`<option value="${k}" ${k === s.label_size ? raw('selected') : ''}>${v.label}</option>`)}</select></label>
+        </div>
+        <p class="muted">Pickup address for tablet orders: the category's <em>Default pickup address</em> (Client categories, below),
+          or the organization address if that is blank. ${kioskNoAddress ? html`<strong class="warn-text">Neither is set yet — drivers will not see a pickup address.</strong>` : ''}</p>
+        <p class="muted">To set up the tablet: invite a user with the <strong>Tablet</strong> role (below), then sign in on the tablet with that account.
+          It opens straight into the walk-up screen. To leave it, tap the K logo 5 times and enter the password.</p>
+        <div class="btn-group"><button class="btn btn-primary">Save</button><a class="btn" href="#/kiosk">Open the tablet screen</a></div></form>`)}
       ${sec('disc', 'Bag-count discrepancy rules', html`<form data-save="disc">
         <label class="check"><input type="checkbox" name="flag_collection_vs_expected" ${s.flag_collection_vs_expected ? raw('checked') : ''}>
           Flag a discrepancy when the bags collected differ from the number the client said</label>
@@ -152,6 +170,10 @@ export async function render(root) {
           await upd({ flag_collection_vs_expected: !!v.flag_collection_vs_expected, require_discrepancy_resolution: !!v.require_discrepancy_resolution });
           break;
         case 'notif': await upd({ notify_kinds: v.notify_kinds || [] }); break;
+        case 'kiosk':
+          await upd({ kiosk_category_id: v.kiosk_category_id || null, label_size: v.label_size,
+            kiosk_max_bags: intIn(v, 'kiosk_max_bags', 1, 100, 'Most bags per request') });
+          break;
         case 'dispatch': {
           const m = String(v.default_offer_minutes || '').trim();
           if (m && (!/^\d+$/.test(m) || Number(m) < 5 || Number(m) > 10080)) throw new Error('Offer time must be 5 to 10080 minutes, or blank.');

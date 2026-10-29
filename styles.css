@@ -380,3 +380,64 @@ body.modal-open { overflow: hidden; }
 .route-preview { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .7rem .85rem; margin-bottom: 1rem; }
 .route-preview .route, .offer-card .route { font-size: 1.1rem; margin: .25rem 0; }
 .offer-card { border-left: 4px solid var(--wait); }
+
+/* walk-up tablet (kiosk) */
+body.kiosk-mode { overscroll-behavior: none; }
+.kiosk { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); font-size: 18px; }
+.kiosk-head { display: flex; align-items: center; gap: .75rem; padding: .75rem 1.25rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+.kiosk-logo { border: 0; width: 44px; height: 44px; font-size: 1.2rem; cursor: default; -webkit-tap-highlight-color: transparent; }
+.kiosk-org { font-weight: 700; font-size: 1.15rem; flex: 1; }
+.kiosk-lang { display: flex; gap: .4rem; }
+.kiosk-lang .btn { min-height: 44px; font-size: 1rem; }
+.kiosk-body { flex: 1; display: grid; place-items: center; padding: 1.25rem 16px; }
+.kiosk-card { width: 100%; max-width: 640px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.75rem; box-shadow: var(--shadow); }
+.kiosk-card h1 { font-size: 2rem; }
+.kiosk-sub { color: var(--text-2); font-size: 1.1rem; }
+.kiosk-field > span { font-size: 1.1rem; color: var(--text); }
+.kiosk-field input { min-height: 64px; font-size: 1.5rem; padding: .5rem .85rem; }
+.kiosk-err { color: var(--danger); font-weight: 600; font-size: 1rem; }
+.kiosk-field input[aria-invalid=true] { border-color: var(--danger); border-width: 2px; }
+.kiosk-stepper { display: flex; align-items: center; gap: 1rem; }
+.kiosk-stepper .btn { width: 72px; height: 72px; font-size: 2rem; border-radius: 50%; }
+.kiosk-bags { min-width: 3ch; text-align: center; font-size: 2.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.kiosk-submit { min-height: 72px; font-size: 1.35rem; margin-top: .75rem; border-radius: 12px; }
+.kiosk-done { text-align: center; }
+.kiosk-check { width: 84px; height: 84px; margin: 0 auto 1rem; border-radius: 50%; background: var(--ok-soft); color: var(--ok); display: grid; place-items: center; font-size: 3rem; font-weight: 800; }
+.kiosk-orderno { font-size: 4rem; font-weight: 800; margin: .25rem 0 1rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.kiosk-actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; margin: 1.25rem 0 .5rem; }
+.kiosk-actions .btn { min-width: 180px; min-height: 64px; font-size: 1.2rem; }
+.kiosk .modal-overlay, body.kiosk-mode .modal-overlay { font-size: 18px; }
+#kiosk-print { display: none; }
+@media (max-width: 520px) {
+  .kiosk-card { padding: 1.1rem; } .kiosk-card h1 { font-size: 1.6rem; } .kiosk-orderno { font-size: 3rem; }
+  .kiosk-org { font-size: 1rem; }
+}
+
+/* printed bag labels: one per page, page size set by the tablet from Settings */
+.k-label { box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
+  break-after: page; page-break-after: always; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+.k-label:last-child { break-after: auto; page-break-after: auto; }
+.k-label-org { font-size: 12pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.k-label-no { font-size: 60pt; font-weight: 800; line-height: 1; }
+.k-label-name { font-size: 26pt; font-weight: 700; line-height: 1.1; word-break: break-word; }
+.k-label-phone { font-size: 18pt; }
+.k-label-foot { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid #000; padding-top: 6pt; font-size: 16pt; }
+.k-label[data-size="4x6"] { width: 4in; height: 6in; padding: .3in; }
+.k-label[data-size="62mm"] { width: 62mm; height: 100mm; padding: 4mm; }
+.k-label[data-size="62mm"] .k-label-no { font-size: 36pt; }
+.k-label[data-size="62mm"] .k-label-name { font-size: 18pt; }
+.k-label[data-size="62mm"] .k-label-phone, .k-label[data-size="62mm"] .k-label-foot { font-size: 12pt; }
+.k-label[data-size="2.25x1.25"] { width: 2.25in; height: 1.25in; padding: .06in .1in; }
+.k-label[data-size="2.25x1.25"] .k-label-org, .k-label[data-size="2.25x1.25"] .k-label-phone { display: none; }
+.k-label[data-size="2.25x1.25"] .k-label-no { font-size: 22pt; }
+.k-label[data-size="2.25x1.25"] .k-label-name { font-size: 11pt; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.k-label[data-size="2.25x1.25"] .k-label-foot { font-size: 8pt; border-top-width: 1px; padding-top: 2pt; }
+.k-label[data-size="letter"] { width: 8.5in; height: 11in; padding: .75in; }
+.k-label[data-size="letter"] .k-label-no { font-size: 120pt; }
+.k-label[data-size="letter"] .k-label-name { font-size: 48pt; }
+.k-label[data-size="letter"] .k-label-phone, .k-label[data-size="letter"] .k-label-foot { font-size: 28pt; }
+@media print {
+  body.kiosk-mode { background: #fff; }
+  body.kiosk-mode > :not(#kiosk-print) { display: none !important; }
+  body.kiosk-mode #kiosk-print { display: block; }
+}

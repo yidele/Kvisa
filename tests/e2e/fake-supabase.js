@@ -20,6 +20,7 @@
     notify_kinds: ['assigned', 'reassigned', 'schedule_changed', 'upcoming', 'overdue', 'washing_completed', 'return_ready', 'delivered', 'exception'],
     cancellation_reasons: ['Client cancelled', 'Other'], correction_reasons: ['Entered by mistake', 'Other'],
     status_labels: {}, task_type_labels: {},
+    kiosk_category_id: 'meshilach', kiosk_max_bags: 20, label_size: '4x6',
   };
   const O = '11111111-1111-1111-1111-111111111111';
   const C = '22222222-2222-2222-2222-222222222222';
@@ -81,8 +82,8 @@
     task_offers: [{ id: 'off1', order_id: O, task_id: tasks[3].id, status: 'declined', created_at: iso(-1), accepted_at: null, close_reason: 'Every driver declined' }],
     offer_recipients: [{ offer_id: 'off1', order_id: O, person_id: people[0].id, response: 'declined' }, { offer_id: 'off1', order_id: O, person_id: people[2].id, response: 'declined' }],
   };
-  const ctx = { user_id: 'u1', email: 'admin@test', full_name: role === 'admin' ? 'Admin User' : 'Avi Driver', active: true,
-    person_id: role === 'admin' ? null : people[0].id, roles: role === 'admin' ? ['admin'] : ['driver'], settings };
+  const ctx = { user_id: 'u1', email: role === 'kiosk' ? 'tablet@test' : 'admin@test', full_name: role === 'admin' ? 'Admin User' : role === 'kiosk' ? 'Tablet' : 'Avi Driver', active: true,
+    person_id: role === 'driver' ? people[0].id : null, roles: role === 'admin' ? ['admin'] : role === 'kiosk' ? ['kiosk'] : ['driver'], settings };
   const rpcs = {
     my_context: ctx, generate_recurring_orders: 0, refresh_due_notifications: 0, assignment_conflicts: [{ kind: 'overlap', message: 'Also has Pickup for K-1002 at 10:15 AM.' }],
     dashboard_summary: { date: '2026-10-13', pickups_scheduled: 3, pickups_completed: 1, awaiting_washing: 2, washing_in_progress: 1, bags_ready_for_return: 6,
@@ -103,6 +104,7 @@
       expected_bags: 4, scheduled_at: iso(3), note: 'Two heavy bags', expires_at: iso(2), created_at: iso(-0.1) }],
     dispatch_preview: { from_street: 'Maple Avenue', to_street: 'Other St', blocked: null, assignee_id: null },
     dispatch_task: 'off3', respond_offer: { accepted: true, task_id: 'x' }, cancel_offer: null,
+    kiosk_submit: { order_no: 1015, name: 'Moshe <b>Levi</b>', phone: '052-123-4567', bags: 3, created_at: iso(0), returning: true, repeat: false },
   };
   window.__writes = [];
   function builder(table) {
@@ -141,8 +143,8 @@
         auth: {
           getSession: () => Promise.resolve({ data: { session } }),
           onAuthStateChange: (cb) => { setTimeout(() => cb(localStorage.getItem('fakeLoggedOut') ? 'INITIAL_SESSION' : 'INITIAL_SESSION', localStorage.getItem('fakeLoggedOut') ? null : session), 0); return { data: { subscription: { unsubscribe() {} } } }; },
-          signOut: () => Promise.resolve({ error: null }),
-          signInWithPassword: () => Promise.resolve({ error: { message: 'Invalid login credentials' } }),
+          signOut: () => { window.__signedOut = true; return Promise.resolve({ error: null }); },
+          signInWithPassword: (c) => Promise.resolve({ error: c && c.password === 'right-password' ? null : { message: 'Invalid login credentials' } }),
           signUp: () => Promise.resolve({ data: {}, error: { message: 'Database error saving new user' } }),
           resetPasswordForEmail: () => Promise.resolve({ error: null }),
           updateUser: () => Promise.resolve({ error: null }),

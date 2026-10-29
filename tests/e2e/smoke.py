@@ -1,6 +1,7 @@
 """Browser smoke tests: every page renders without JavaScript errors, key flows open,
 and user text is escaped. Uses a fake Supabase client (tests/e2e/fake-supabase.js), so it
-needs no network or database. Run: python3 tests/e2e/smoke.py  (requires Python Playwright + Chromium)
+needs no network or database. Run: python3 tests/e2e/smoke.py  (requires Python Playwright + Chromium;
+set CHROMIUM_PATH to use an already-installed Chromium)
 """
 import functools, http.server, os, pathlib, socketserver, sys, threading
 from playwright.sync_api import sync_playwright
@@ -79,7 +80,7 @@ def main():
     httpd = serve()
     base = f'http://127.0.0.1:{httpd.server_address[1]}'
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH') or None)
         # ---- staff pages (desktop) ----
         page, errors = new_page(browser, base)
         for name, hash_, expect in STAFF_PAGES:
@@ -193,6 +194,83 @@ def main():
             overflow = mob2.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2')
             check(f'mobile page fits screen: {name}', expect in mob2.inner_text('main') and not merr2 and not overflow, (merr2[:2], 'overflow' if overflow else ''))
             mob2.screenshot(path=str(SHOTS / f'{name}.png'))
+
+        # ---- walk-up tablet (kiosk login) ----
+        tctx = browser.new_context(viewport={'width': 800, 'height': 1280}, is_mobile=True, has_touch=True)
+        tab = tctx.new_page()
+        terr = []
+        tab.on('pageerror', lambda e: terr.append(f'pageerror: {e}'))
+        tab.on('console', lambda m: terr.append(f'console.{m.type}: {m.text}') if m.type == 'error' else None)
+        tab.route('https://cdn.jsdelivr.net/**', lambda r: r.fulfill(status=200, content_type='application/javascript', body=FAKE))
+        tab.add_init_script("localStorage.setItem('fakeRole','kiosk'); localStorage.removeItem('fakeLoggedOut'); window.__prints = 0; window.print = () => { window.__prints++; };")
+        tab.goto(f'{base}/index.html')
+        tab.wait_for_selector('.kiosk form')
+        check('tablet login opens straight into the walk-up screen (no menus)', tab.query_selector('.sidebar') is None and tab.query_selector('.bottom-nav') is None and not terr, terr[:3])
+        check('tablet screen starts in Hebrew, right-to-left', tab.get_attribute('.kiosk', 'dir') == 'rtl' and 'מסירת כביסה' in tab.inner_text('.kiosk'))
+        tab.screenshot(path=str(SHOTS / 'kiosk-he.png'))
+        tab.goto(f'{base}/index.html#/settings'); tab.wait_for_timeout(300)
+        check('tablet login cannot open office pages', tab.query_selector('.kiosk form') is not None and 'Settings' not in tab.inner_text('body'))
+        tab.click('.kiosk-submit')
+        tab.wait_for_selector('.kiosk-err')
+        check('empty tablet form shows Hebrew messages', 'נא להקליד שם מלא' in tab.inner_text('.kiosk') and not any(w.get('rpc') == 'kiosk_submit' for w in tab.evaluate('window.__writes')))
+        tab.click('[data-lang=en]')
+        check('language switch to English, left-to-right', tab.get_attribute('.kiosk', 'dir') == 'ltr' and 'Laundry drop-off' in tab.inner_text('.kiosk'))
+        tab.fill('input[name=name]', 'Moshe Levi'); tab.fill('input[name=phone]', '052-123-4567')
+        tab.click('[data-k=more]'); tab.click('[data-k=more]')
+        check('bag stepper counts up', tab.inner_text('.kiosk-bags').strip() == '3')
+        tab.screenshot(path=str(SHOTS / 'kiosk-en-filled.png'))
+        tab.click('.kiosk-submit')
+        tab.wait_for_selector('.kiosk-done')
+        tab.wait_for_timeout(300)
+        sub = [w for w in tab.evaluate('window.__writes') if w.get('rpc') == 'kiosk_submit']
+        a = sub[-1]['args'] if sub else {}
+        check('tablet sends name, phone, bags and a request key', a.get('p_name') == 'Moshe Levi' and a.get('p_phone') == '052-123-4567' and a.get('p_bags') == 3 and len(a.get('p_request_key', '')) == 36, a)
+        done = tab.inner_text('.kiosk-done')
+        check('thank-you screen shows the order number', 'K-1015' in done and 'Moshe <b>Levi</b>' in done, done)
+        check('one label per bag is printed automatically', tab.evaluate('window.__prints') == 1 and len(tab.query_selector_all('#kiosk-print .k-label')) == 3)
+        overflow = tab.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2')
+        check('tablet screen fits the screen', not overflow and not terr, terr[:3])
+        tab.screenshot(path=str(SHOTS / 'kiosk-done.png'))
+        tab.emulate_media(media='print')
+        tab.pdf(path=str(SHOTS / 'kiosk-labels.pdf'), prefer_css_page_size=True, print_background=True)
+        tab.screenshot(path=str(SHOTS / 'kiosk-label-print.png'), full_page=True)
+        lbl = tab.inner_text('#kiosk-print')
+        check('labels show order, name, phone and bag x of y', 'K-1015' in lbl and 'Moshe <b>Levi</b>' in lbl and '052-123-4567' in lbl and 'Bag 3 of 3' in lbl, lbl[:200])
+        tab.emulate_media(media='screen')
+        tab.click('[data-k=print]'); tab.wait_for_timeout(300)
+        check('Print again reprints', tab.evaluate('window.__prints') == 2)
+        tab.click('[data-k=reset]')
+        tab.wait_for_selector('.kiosk form')
+        check('Done returns to a blank Hebrew form', tab.input_value('input[name=name]') == '' and tab.get_attribute('.kiosk', 'dir') == 'rtl' and tab.inner_text('.kiosk-bags').strip() == '1')
+        tab.fill('input[name=name]', 'Second Person'); tab.fill('input[name=phone]', '0529999999'); tab.click('.kiosk-submit')
+        tab.wait_for_selector('.kiosk-done')
+        keys = [w['args']['p_request_key'] for w in tab.evaluate('window.__writes') if w.get('rpc') == 'kiosk_submit']
+        check('each new request gets a new request key', len(keys) == 2 and keys[0] != keys[1], keys)
+        tab.click('[data-k=reset]'); tab.wait_for_selector('.kiosk form')
+        for _ in range(5): tab.click('[data-k=logo]')
+        tab.wait_for_selector('.modal input[type=password]')
+        tab.fill('.modal input[type=password]', 'wrong'); tab.click('.modal button[type=submit]')
+        tab.wait_for_selector('.modal .form-error:not([hidden])')
+        check('leaving tablet mode needs the password', 'סיסמה שגויה' in tab.inner_text('.modal') and not tab.evaluate('window.__signedOut || false'))
+        tab.fill('.modal input[type=password]', 'right-password'); tab.click('.modal button[type=submit]')
+        tab.wait_for_timeout(300)
+        check('right password signs the tablet out', tab.evaluate('window.__signedOut === true'))
+        tctx.close()
+
+        # staff can preview the tablet screen and leave it without a password
+        sp, serr = new_page(browser, base)
+        sp.goto(f'{base}/index.html#/settings'); wait_page(sp)
+        stext = sp.text_content('main')
+        check('settings has the tablet section and Tablet role', 'Tablet (walk-up screen)' in stext and 'Open the tablet screen' in stext)
+        sp.click('#kiosk summary')
+        sp.click('text=Open the tablet screen')
+        sp.wait_for_selector('.kiosk form')
+        check('staff can open the tablet screen', sp.query_selector('.sidebar') is None and not serr, serr[:3])
+        for _ in range(5): sp.click('[data-k=logo]')
+        sp.wait_for_selector('.sidebar')
+        wait_page(sp)
+        check('staff leave the tablet screen back to Settings', '#/settings' in sp.url and 'Settings' in sp.inner_text('main') and sp.query_selector('.kiosk') is None and not serr, (sp.url, serr[:3]))
+        sp.close()
 
         # ---- signed out ----
         lo, lerr = new_page(browser, base, logged_out=True)

@@ -119,6 +119,7 @@ export async function render(root, { params }) {
         <span><strong>Bags now:</strong> ${ov?.current_bags ?? order.expected_bags} <small class="muted">(expected ${order.expected_bags})</small></span>
         ${order.status === 'cancelled' ? html`<span><strong>Cancelled:</strong> ${order.cancel_reason}</span>` : ''}
       </div>
+      ${order.source === 'kiosk' ? html`<div class="notice notice-info">Entered on the tablet by ${order.pickup_contact || 'the client'}${order.pickup_phone ? ` (${order.pickup_phone})` : ''} — labels were printed there.</div>` : ''}
       ${order.recurring_schedule_id ? html`<div class="notice notice-info">Recurring occurrence for ${fmtDate(order.occurrence_date)}.
         ${order.detached_from_series ? 'This occurrence was edited individually, so series changes no longer apply to it.' : 'Series changes apply to it until it is edited individually.'}
         <a href="#/clients/${order.client_id}?series=${order.recurring_schedule_id}">View series</a></div>` : ''}
