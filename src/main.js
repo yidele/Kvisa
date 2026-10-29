@@ -28,7 +28,6 @@ const routes = [
 
 let currentHash = location.hash;
 let cleanup = null;
-let kioskActive = false;
 
 function parseHash() {
   const h = location.hash.replace(/^#/, '') || '/';
@@ -38,9 +37,6 @@ function parseHash() {
 
 async function route() {
   if (!state.session) return showLogin();
-  if (roles.kioskOnly) return showKiosk();
-  if (parseHash().path === '/kiosk' && roles.staff) return showKiosk();
-  if (kioskActive) leaveKiosk();
   if (app.dirty && location.hash !== currentHash) {
     if (!confirm('You have unsaved changes. Leave this page and discard them?')) {
       history.replaceState(null, '', currentHash || '#/');
@@ -51,8 +47,8 @@ async function route() {
   currentHash = location.hash;
   const { path, query } = parseHash();
   const r = routes.find((x) => x.path.test(path));
-  if (!$('#main')) renderShell();
   const main = $('#main');
+  if (!main) return;
   highlightNav(path);
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
   const root = document.createElement('div');
@@ -150,25 +146,6 @@ function highlightNav(path) {
   });
 }
 
-// The tablet screen takes over the whole window (no navigation).
-async function showKiosk() {
-  if (kioskActive) return;
-  kioskActive = true;
-  clearInterval(notifTimer);
-  if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
-  const mod = await import('./pages/kiosk.js');
-  cleanup = mod.render(document.body, { canLeave: roles.staff, onLeave: () => app.navigate('/settings') });
-}
-
-function leaveKiosk() {
-  kioskActive = false;
-  if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
-  renderShell();
-  refreshNotifications();
-  clearInterval(notifTimer);
-  notifTimer = setInterval(refreshNotifications, 60000);
-}
-
 let notifTimer = null;
 async function refreshNotifications() {
   try {
@@ -195,14 +172,14 @@ async function startApp() {
     $('#so').onclick = () => sb.auth.signOut();
     return;
   }
-  if (roles.kioskOnly) { await route(); return; }
+  // A tablet login has nothing to do here: send it to the tablet app.
+  if (roles.kioskOnly) { location.replace('tablet/'); return; }
   if (roles.staff) {
     await Promise.all([loadPeople(), loadCategories()]);
     rpc('generate_recurring_orders').catch(() => {});  // keeps the planning window filled; idempotent
   }
-  if (parseHash().path !== '/kiosk') renderShell();
+  renderShell();
   await route();
-  if (kioskActive) return;
   refreshNotifications();
   clearInterval(notifTimer);
   notifTimer = setInterval(refreshNotifications, 60000);
@@ -210,7 +187,6 @@ async function startApp() {
 
 async function showLogin() {
   clearInterval(notifTimer);
-  if (kioskActive) { kioskActive = false; if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; } }
   const mod = await import('./pages/login.js');
   mod.render(document.body);
 }

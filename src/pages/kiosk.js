@@ -13,8 +13,8 @@ const IDLE_SECONDS = 90;       // a half-filled form is cleared after this long 
 const newKey = () => (crypto.randomUUID ? crypto.randomUUID()
   : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
 
-// canLeave: staff previewing the tablet leave without a password; onLeave returns them to the app.
-export function render(container, { canLeave = false, onLeave } = {}) {
+// Leaving the screen (5 taps on the logo) asks for the signed-in account's password, then signs out.
+export function render(container) {
   const s = settings();
   const org = s.org_name || APP_NAME;
   const maxBags = s.kiosk_max_bags || 20;
@@ -137,7 +137,6 @@ export function render(container, { canLeave = false, onLeave } = {}) {
   }
 
   async function exitTablet() {
-    if (canLeave) { onLeave && onLeave(); return; }
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.setAttribute('dir', LANGS[lang].dir);

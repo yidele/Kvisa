@@ -92,8 +92,11 @@ without first disabling those triggers. Do that only during a documented restore
    Tablet orders use it as the pickup address. (If blank, the organization address is used.)
 2. **Settings → Tablet:** check the category, the most bags per request, and the **label size** of your printer.
 3. **Settings → Users → Invite someone:** an email you control (e.g. `tablet@yourdomain`), role **Tablet** only, no person record.
-4. On the tablet, open the Kvisa site, choose *Create account* with that email, then sign in. It opens straight into the
-   walk-up screen and stays signed in.
+4. On the tablet, create that account once on the main Kvisa site (*Create account*). Then open the **tablet app** —
+   the Kvisa site address followed by `tablet/` (e.g. `https://yidele.github.io/Kvisa/tablet/`) — and sign in.
+   It opens straight into the walk-up screen and stays signed in. In Chrome you can install it as an app
+   (⋮ menu → *Cast, save and share* → *Install page as app*) so it opens full screen from its own icon.
+   To try it before making a tablet account, sign in to the tablet app with your own administrator account.
 5. **Lock the tablet to that page.** Android: install *Fully Kiosk Browser*, set the Kvisa site as the start page and turn
    on kiosk mode (or use Android *App pinning* with Chrome). iPad: *Settings → Accessibility → Guided Access*.
    Windows: Chrome with `--kiosk --kiosk-printing` prints labels with no dialog at all.
@@ -101,7 +104,7 @@ without first disabling those triggers. Do that only during a documented restore
    On Android and iPad the browser shows a print dialog: tap *Print* once per request.
 7. **To leave tablet mode:** tap the **K** logo 5 times and type the tablet account's password.
 
-Staff can preview the screen from Settings → Tablet → *Open the tablet screen* (tap the logo 5 times to come back).
+Settings → Tablet shows the tablet app's address and an *Open the tablet app* button.
 Every tablet request appears in the Dispatcher as a normal *Requested* order and in the bell as "New tablet request".
 
 ## 9. Notifications

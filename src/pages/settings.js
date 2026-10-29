@@ -76,9 +76,10 @@ export async function render(root) {
         </div>
         <p class="muted">Pickup address for tablet orders: the category's <em>Default pickup address</em> (Client categories, below),
           or the organization address if that is blank. ${kioskNoAddress ? html`<strong class="warn-text">Neither is set yet — drivers will not see a pickup address.</strong>` : ''}</p>
-        <p class="muted">To set up the tablet: invite a user with the <strong>Tablet</strong> role (below), then sign in on the tablet with that account.
-          It opens straight into the walk-up screen. To leave it, tap the K logo 5 times and enter the password.</p>
-        <div class="btn-group"><button class="btn btn-primary">Save</button><a class="btn" href="#/kiosk">Open the tablet screen</a></div></form>`)}
+        <p class="muted">The tablet app has its own address: <a href="tablet/" target="_blank" rel="noopener"><strong>${location.origin + location.pathname.replace(/[^/]*$/, '')}tablet/</strong></a>.
+          Open it in Chrome on the tablet and sign in once — with a <strong>Tablet</strong> account (invite one below), or your own account to try it out.
+          To leave the screen, tap the K logo 5 times and enter that account's password.</p>
+        <div class="btn-group"><button class="btn btn-primary">Save</button><a class="btn" href="tablet/" target="_blank" rel="noopener">Open the tablet app</a></div></form>`)}
       ${sec('disc', 'Bag-count discrepancy rules', html`<form data-save="disc">
         <label class="check"><input type="checkbox" name="flag_collection_vs_expected" ${s.flag_collection_vs_expected ? raw('checked') : ''}>
           Flag a discrepancy when the bags collected differ from the number the client said</label>

@@ -33,5 +33,6 @@
 | Double taps / lost replies | The tablet sends a request key; the same key always returns the same order. | Flaky Wi-Fi must never create two orders. |
 | Abuse limit | At most 30 tablet requests per 10 minutes. | Cheap protection for an unattended screen. |
 | Labels | Printed from the browser, one page per bag, page size from Settings (4×6, 62 mm Brother, small Dymo, or full page). | Works with any printer the tablet can print to; no extra software. |
-| Leaving tablet mode | Tap the K logo 5 times, then type the tablet account's password. Staff previewing the screen leave without a password. | Guests can't get out; the office can. |
+| Tablet app | A separate page (`tablet/`) with its own sign-in and an install manifest, sharing the database and code with the main app. A Tablet login that opens the main site is sent there. Administrators and dispatchers may also sign in to it to try it. | Can be opened or installed on its own and locked to one screen. |
+| Leaving tablet mode | Tap the K logo 5 times, then type the signed-in account's password. | Guests can't get out; the office can. |
 | Languages | The tablet screen is in Hebrew (default) and English, and resets to Hebrew after each person. Labels are in English for the office. | The meshulachim are from Israel. |

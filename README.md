@@ -13,6 +13,7 @@ with a bag count recorded at every handoff, so you always know where the bags ar
 | Path | What it is |
 |---|---|
 | `index.html`, `styles.css`, `src/` | The web app (ES modules). `src/pages/` has one file per screen. |
+| `tablet/` | The walk-up tablet app (its own page and install manifest; code in `src/tablet.js` and `src/pages/kiosk.js`). |
 | `supabase/migrations/` | The database, in order. This is the source of truth for tables, rules and security. |
 | `supabase/tests/business_rules.sql` | 59 database tests of the business rules (run inside a rolled-back transaction). |
 | `supabase/tests/dispatch_offers.sql` | 30 database tests of driver job offers and address privacy. |
