@@ -14,7 +14,7 @@ export async function render(root, { query }) {
     const num = Number(q.replace(/^[kKcCpP]-?/, ''));
     const digits = normalizePhone(q);
     const clientOr = [`name.ilike.${like}`, `pickup_address.ilike.${like}`, `primary_contact.ilike.${like}`];
-    if (digits.length >= 3) clientOr.push(`phone.ilike.%${digits.slice(-4)}%`);
+    if (digits.length >= 3) clientOr.push(`phone.ilike.%${digits.slice(-4)}%`, `israel_phone.ilike.%${digits.slice(-4)}%`);
     if (/^c-?\d+$/i.test(q)) clientOr.push(`client_no.eq.${num}`);
     const [orders, clients] = await Promise.all([
       Number.isInteger(num) && num > 0 && /^(k-?)?\d+$/i.test(q)

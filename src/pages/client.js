@@ -22,6 +22,7 @@ export function clientFormBody(c, cats) {
     <div class="row">
       <label class="field"><span>Primary contact</span><input name="primary_contact" value="${c.primary_contact || ''}"></label>
       <label class="field"><span>Phone</span><input name="phone" type="tel" value="${c.phone || ''}"></label>
+      <label class="field"><span>Phone in Israel</span><input name="israel_phone" type="tel" value="${c.israel_phone || ''}"></label>
       <label class="field"><span>Email (optional)</span><input name="email" type="email" value="${c.email || ''}"></label>
     </div>
     <label class="field"><span>Pickup address</span><input name="pickup_address" value="${c.pickup_address || ''}"></label>
@@ -44,7 +45,7 @@ export function readClientForm(v) {
   if (v.email && !/^\S+@\S+\.\S+$/.test(v.email)) throw new Error('The email address does not look right.');
   const n = (x) => (x && String(x).trim() !== '' ? String(x).trim() : null);
   const out = {
-    name: v.name.trim(), category_id: v.category_id, primary_contact: n(v.primary_contact), phone: n(v.phone), email: n(v.email),
+    name: v.name.trim(), category_id: v.category_id, primary_contact: n(v.primary_contact), phone: n(v.phone), israel_phone: n(v.israel_phone), email: n(v.email),
     pickup_address: n(v.pickup_address), default_return_recipient: n(v.default_return_recipient),
     default_return_phone: n(v.default_return_phone), default_return_address: n(v.default_return_address),
     access_instructions: n(v.access_instructions),
@@ -184,6 +185,7 @@ export async function render(root, { params, query }) {
         <section class="card"><h2>Details</h2>
           <dl class="kv">
             <div><dt>Primary contact</dt><dd>${c.primary_contact || '—'} ${telLink(c.phone)}</dd></div>
+            ${c.israel_phone ? html`<div><dt>Phone in Israel</dt><dd>${telLink(c.israel_phone)}</dd></div>` : ''}
             ${c.email ? html`<div><dt>Email</dt><dd><a href="mailto:${c.email}">${c.email}</a></dd></div>` : ''}
             <div><dt>Pickup address</dt><dd>${c.pickup_address || '—'}</dd></div>
             <div><dt>Return to</dt><dd>${c.default_return_recipient || 'Client'} — ${c.default_return_address || 'same address'} ${telLink(c.default_return_phone)}</dd></div>

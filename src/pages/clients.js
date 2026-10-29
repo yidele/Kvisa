@@ -47,7 +47,7 @@ export async function render(root, { query }) {
       else {
         const like = `%${term.replace(/[%,()]/g, ' ')}%`;
         const ors = [`name.ilike.${like}`, `pickup_address.ilike.${like}`, `default_return_address.ilike.${like}`, `primary_contact.ilike.${like}`];
-        if (digits.length >= 3) ors.push(`phone.ilike.%${digits.slice(-4)}%`);
+        if (digits.length >= 3) ors.push(`phone.ilike.%${digits.slice(-4)}%`, `israel_phone.ilike.%${digits.slice(-4)}%`);
         q = q.or(ors.join(','));
       }
     }

@@ -196,68 +196,123 @@ def main():
             mob2.screenshot(path=str(SHOTS / f'{name}.png'))
 
         # ---- walk-up tablet (kiosk login) ----
-        tctx = browser.new_context(viewport={'width': 800, 'height': 1280}, is_mobile=True, has_touch=True)
+        tctx = browser.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True)
         tab = tctx.new_page()
         terr = []
         tab.on('pageerror', lambda e: terr.append(f'pageerror: {e}'))
         tab.on('console', lambda m: terr.append(f'console.{m.type}: {m.text}') if m.type == 'error' else None)
         tab.route('https://cdn.jsdelivr.net/**', lambda r: r.fulfill(status=200, content_type='application/javascript', body=FAKE))
         tab.add_init_script("localStorage.setItem('fakeRole','kiosk'); localStorage.removeItem('fakeLoggedOut'); window.__prints = 0; window.print = () => { window.__prints++; };")
+        rpcs = lambda name: [w for w in tab.evaluate('window.__writes') if w.get('rpc') == name]
+        no_overflow = lambda: not tab.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2')
         tab.goto(f'{base}/index.html')
         tab.wait_for_url('**/tablet/**')
-        tab.wait_for_selector('.kiosk form')
+        tab.wait_for_selector('.kiosk-welcome')
         check('a tablet login opening the main app is sent to the tablet app', '/tablet/' in tab.url, tab.url)
-        check('tablet login opens straight into the walk-up screen (no menus)', tab.query_selector('.sidebar') is None and tab.query_selector('.bottom-nav') is None and not terr, terr[:3])
-        check('tablet screen starts in Hebrew, right-to-left', tab.get_attribute('.kiosk', 'dir') == 'rtl' and 'מסירת כביסה' in tab.inner_text('.kiosk'))
-        tab.screenshot(path=str(SHOTS / 'kiosk-he.png'))
-        tab.goto(f'{base}/index.html#/settings'); tab.wait_for_url('**/tablet/**'); tab.wait_for_selector('.kiosk form')
+        wt = tab.inner_text('.kiosk')
+        check('welcome screen: logo, name and Hebrew / English / Yiddish', tab.query_selector('.kiosk-mark') is not None and 'Kvisa Test Org' in wt
+              and 'עברית' in wt and 'English' in wt and 'אידיש' in wt and tab.query_selector('.sidebar') is None and not terr, terr[:3])
+        tab.screenshot(path=str(SHOTS / 'tablet-1-welcome.png'))
+        tab.goto(f'{base}/index.html#/settings'); tab.wait_for_url('**/tablet/**'); tab.wait_for_selector('.kiosk-welcome')
         check('tablet login cannot open office pages', 'Settings' not in tab.inner_text('body'))
-        tab.click('.kiosk-submit')
-        tab.wait_for_selector('.kiosk-err')
-        check('empty tablet form shows Hebrew messages', 'נא להקליד שם מלא' in tab.inner_text('.kiosk') and not any(w.get('rpc') == 'kiosk_submit' for w in tab.evaluate('window.__writes')))
-        tab.click('[data-lang=en]')
-        check('language switch to English, left-to-right', tab.get_attribute('.kiosk', 'dir') == 'ltr' and 'Laundry drop-off' in tab.inner_text('.kiosk'))
-        tab.fill('input[name=name]', 'Moshe Levi'); tab.fill('input[name=phone]', '052-123-4567')
+
+        # Yiddish menu, right-to-left
+        tab.click('[data-lang=yi]')
+        tab.wait_for_selector('.kiosk-menu')
+        check('Yiddish menu is right-to-left with both choices', tab.get_attribute('.kiosk', 'dir') == 'rtl'
+              and 'אפגעבן וועש' in tab.inner_text('.kiosk-menu') and 'וואו איז מיין וועש?' in tab.inner_text('.kiosk-menu'))
+        tab.screenshot(path=str(SHOTS / 'tablet-2-menu-yi.png'))
+        tab.click('[data-go=form]'); tab.wait_for_selector('form[data-form=dropoff]')
+        tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-err')
+        check('empty form shows Yiddish messages and sends nothing', 'ביטע שרייבט אריין אייער ערשטע נאמען' in tab.inner_text('.kiosk') and not rpcs('kiosk_submit'))
+        tab.click('.kiosk-back'); tab.wait_for_selector('.kiosk-menu')
+        tab.click('.kiosk-back'); tab.wait_for_selector('.kiosk-welcome')
+        check('Back goes menu → welcome', True)
+
+        # English drop-off, start to finish
+        tab.click('[data-lang=en]'); tab.wait_for_selector('.kiosk-menu')
+        check('English menu is left-to-right', tab.get_attribute('.kiosk', 'dir') == 'ltr' and 'Drop off laundry' in tab.inner_text('.kiosk-menu'))
+        tab.screenshot(path=str(SHOTS / 'tablet-2-menu-en.png'))
+        tab.click('[data-go=form]'); tab.wait_for_selector('form[data-form=dropoff]')
+        ft = tab.inner_text('form')
+        check('form asks first, middle (optional), last name, phone here and phone in Israel', all(x in ft for x in
+              ['First name', 'Middle name', '(optional)', 'Last name', 'Phone number here (America)', 'Phone number in Israel', 'How many bags?']), ft)
+        tab.fill('input[name=first]', 'Moshe'); tab.fill('input[name=last]', 'Levi')
+        tab.fill('input[name=phone]', '718-555-0101'); tab.fill('input[name=israel]', '052-123-4567')
         tab.click('[data-k=more]'); tab.click('[data-k=more]')
         check('bag stepper counts up', tab.inner_text('.kiosk-bags').strip() == '3')
-        tab.screenshot(path=str(SHOTS / 'kiosk-en-filled.png'))
+        tab.screenshot(path=str(SHOTS / 'tablet-3-form.png'))
         tab.click('.kiosk-submit')
-        tab.wait_for_selector('.kiosk-done')
-        tab.wait_for_timeout(300)
-        sub = [w for w in tab.evaluate('window.__writes') if w.get('rpc') == 'kiosk_submit']
-        a = sub[-1]['args'] if sub else {}
-        check('tablet sends name, phone, bags and a request key', a.get('p_name') == 'Moshe Levi' and a.get('p_phone') == '052-123-4567' and a.get('p_bags') == 3 and len(a.get('p_request_key', '')) == 36, a)
-        done = tab.inner_text('.kiosk-done')
-        check('thank-you screen shows the order number', 'K-1015' in done and 'Moshe <b>Levi</b>' in done, done)
-        check('one label per bag is printed automatically', tab.evaluate('window.__prints') == 1 and len(tab.query_selector_all('#kiosk-print .k-label')) == 3)
-        overflow = tab.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2')
-        check('tablet screen fits the screen', not overflow and not terr, terr[:3])
-        tab.screenshot(path=str(SHOTS / 'kiosk-done.png'))
+        tab.wait_for_selector('.kiosk-labels'); tab.wait_for_timeout(300)
+        a = rpcs('kiosk_submit')[-1]['args'] if rpcs('kiosk_submit') else {}
+        check('sends first/middle/last, both phones, bags and a request key', a.get('p_first') == 'Moshe' and a.get('p_middle') == '' and a.get('p_last') == 'Levi'
+              and a.get('p_phone') == '718-555-0101' and a.get('p_israel_phone') == '052-123-4567' and a.get('p_bags') == 3 and len(a.get('p_request_key', '')) == 36, a)
+        lt = tab.inner_text('.kiosk-labels')
+        check('labels screen shows each label and the instructions', len(tab.query_selector_all('.k-mini')) == 3 and 'Bag 3 of 3' in lt
+              and 'put one on each bag' in lt and 'press "Done"' in lt, lt)
+        check('labels print automatically, one page per bag', tab.evaluate('window.__prints') == 1 and len(tab.query_selector_all('#kiosk-print .k-label')) == 3)
+        check('labels screen fits the tablet', no_overflow() and not terr, terr[:3])
+        tab.screenshot(path=str(SHOTS / 'tablet-4-labels.png'))
         tab.emulate_media(media='print')
-        tab.pdf(path=str(SHOTS / 'kiosk-labels.pdf'), prefer_css_page_size=True, print_background=True)
-        tab.screenshot(path=str(SHOTS / 'kiosk-label-print.png'), full_page=True)
-        lbl = tab.inner_text('#kiosk-print')
-        check('labels show order, name, phone and bag x of y', 'K-1015' in lbl and 'Moshe <b>Levi</b>' in lbl and '052-123-4567' in lbl and 'Bag 3 of 3' in lbl, lbl[:200])
+        tab.pdf(path=str(SHOTS / 'tablet-labels.pdf'), prefer_css_page_size=True, print_background=True)
         tab.emulate_media(media='screen')
         tab.click('[data-k=print]'); tab.wait_for_timeout(300)
         check('Print again reprints', tab.evaluate('window.__prints') == 2)
-        tab.click('[data-k=reset]')
-        tab.wait_for_selector('.kiosk form')
-        check('Done returns to a blank Hebrew form', tab.input_value('input[name=name]') == '' and tab.get_attribute('.kiosk', 'dir') == 'rtl' and tab.inner_text('.kiosk-bags').strip() == '1')
-        tab.fill('input[name=name]', 'Second Person'); tab.fill('input[name=phone]', '0529999999'); tab.click('.kiosk-submit')
-        tab.wait_for_selector('.kiosk-done')
-        keys = [w['args']['p_request_key'] for w in tab.evaluate('window.__writes') if w.get('rpc') == 'kiosk_submit']
-        check('each new request gets a new request key', len(keys) == 2 and keys[0] != keys[1], keys)
-        tab.click('[data-k=reset]'); tab.wait_for_selector('.kiosk form')
+        tab.click('[data-go=summary]'); tab.wait_for_selector('.kiosk-summary')
+        st = tab.inner_text('.kiosk-summary')
+        check('summary shows order number, name, both phones, bags and how to track', all(x in st for x in
+              ['K-1015', 'Moshe <b>Levi</b>', '718-555-0101', '052-123-4567', 'Where is my laundry?']), st)
+        tab.screenshot(path=str(SHOTS / 'tablet-5-summary.png'))
+        tab.click('[data-go=welcome]'); tab.wait_for_selector('.kiosk-welcome')
+        check('Finish returns to the welcome screen with nothing left over', tab.inner_text('#kiosk-print').strip() == '')
+
+        # a second person gets a new request key
+        tab.click('[data-lang=he]'); tab.click('[data-go=form]'); tab.wait_for_selector('form[data-form=dropoff]')
+        check('Hebrew form is right-to-left and starts blank', tab.get_attribute('.kiosk', 'dir') == 'rtl' and tab.input_value('input[name=first]') == '')
+        tab.fill('input[name=first]', 'Dovid'); tab.fill('input[name=last]', 'Klein')
+        tab.fill('input[name=phone]', '0529999999'); tab.fill('input[name=israel]', '0529999999')
+        tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-labels')
+        keys = [w['args']['p_request_key'] for w in rpcs('kiosk_submit')]
+        check('each new person gets a new request key', len(keys) == 2 and keys[0] != keys[1], keys)
+        tab.click('[data-go=summary]'); tab.click('[data-go=welcome]'); tab.wait_for_selector('.kiosk-welcome')
+
+        # where is my laundry?
+        tab.click('[data-lang=en]'); tab.click('[data-go=track]'); tab.wait_for_selector('form[data-form=track]')
+        tab.fill('input[name=phone]', '052-123-4567'); tab.fill('input[name=first]', 'Moshe')
+        tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-orders')
+        tr = tab.inner_text('.kiosk-track')
+        ta = rpcs('kiosk_track')[-1]['args']
+        check('tracking sends phone + first name', ta == {'p_phone': '052-123-4567', 'p_first_name': 'Moshe'}, ta)
+        check('tracking shows where it is now and four simple steps', 'K-1016' in tr and 'Now: Picked up — being washed' in tr and '2 bags' in tr
+              and tab.inner_text('.kiosk-order >> nth=0 >> li.now').strip().endswith('Being washed') and 'Updates automatically' in tr, tr)
+        check('a delivered order shows all steps done', len(tab.query_selector_all('.kiosk-order >> nth=1 >> li.done')) == 4
+              and 'Brought back' in tab.inner_text('.kiosk-order >> nth=1 >> .kiosk-order-note'))
+        check('tracking screen fits the tablet', no_overflow() and not terr, terr[:3])
+        tab.screenshot(path=str(SHOTS / 'tablet-6-track.png'))
+        tab.click('.kiosk-back'); tab.wait_for_selector('.kiosk-menu')
+
+        # leave tablet mode
         for _ in range(5): tab.click('[data-k=logo]')
         tab.wait_for_selector('.modal input[type=password]')
         tab.fill('.modal input[type=password]', 'wrong'); tab.click('.modal button[type=submit]')
         tab.wait_for_selector('.modal .form-error:not([hidden])')
-        check('leaving tablet mode needs the password', 'סיסמה שגויה' in tab.inner_text('.modal') and not tab.evaluate('window.__signedOut || false'))
+        check('leaving tablet mode needs the password', 'Wrong password' in tab.inner_text('.modal') and not tab.evaluate('window.__signedOut || false'))
         tab.fill('.modal input[type=password]', 'right-password'); tab.click('.modal button[type=submit]')
         tab.wait_for_timeout(300)
         check('right password signs the tablet out', tab.evaluate('window.__signedOut === true'))
         tctx.close()
+
+        # the same screens on a small phone-sized window
+        sctx = browser.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True)
+        sm = sctx.new_page()
+        sm.route('https://cdn.jsdelivr.net/**', lambda r: r.fulfill(status=200, content_type='application/javascript', body=FAKE))
+        sm.add_init_script("localStorage.setItem('fakeRole','kiosk'); localStorage.removeItem('fakeLoggedOut'); window.print = () => {};")
+        sm.goto(f'{base}/tablet/'); sm.wait_for_selector('.kiosk-welcome')
+        fits = [not sm.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2')]
+        sm.click('[data-lang=he]'); sm.wait_for_selector('.kiosk-menu'); fits.append(not sm.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2'))
+        sm.click('[data-go=form]'); sm.wait_for_selector('form[data-form=dropoff]'); fits.append(not sm.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2'))
+        check('tablet screens also fit a small screen', all(fits), fits)
+        sctx.close()
 
         # the separate tablet app: staff can try it with their own account
         sp, serr = new_page(browser, base)
@@ -265,7 +320,7 @@ def main():
         stext = sp.text_content('main')
         check('settings has the tablet section, its address and the Tablet role', 'Tablet (walk-up screen)' in stext and 'Open the tablet app' in stext and '/tablet/' in stext)
         sp.goto(f'{base}/tablet/')
-        sp.wait_for_selector('.kiosk form')
+        sp.wait_for_selector('.kiosk-welcome')
         check('staff can run the tablet app', sp.query_selector('.sidebar') is None and not serr, serr[:3])
         check('tablet app is installable (manifest)', sp.evaluate("fetch('manifest.webmanifest').then(r => r.json()).then(m => m.display + '|' + m.start_url)") == 'fullscreen|./')
         sp.close()

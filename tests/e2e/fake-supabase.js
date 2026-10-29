@@ -104,7 +104,9 @@
       expected_bags: 4, scheduled_at: iso(3), note: 'Two heavy bags', expires_at: iso(2), created_at: iso(-0.1) }],
     dispatch_preview: { from_street: 'Maple Avenue', to_street: 'Other St', blocked: null, assignee_id: null },
     dispatch_task: 'off3', respond_offer: { accepted: true, task_id: 'x' }, cancel_offer: null,
-    kiosk_submit: { order_no: 1015, name: 'Moshe <b>Levi</b>', phone: '052-123-4567', bags: 3, created_at: iso(0), returning: true, repeat: false },
+    kiosk_submit: { order_no: 1015, name: 'Moshe <b>Levi</b>', phone: '718-555-0101', israel_phone: '052-123-4567', bags: 3, created_at: iso(0), returning: true, repeat: false },
+    kiosk_track: [{ order_no: 1016, bags: 2, status: 'awaiting_washing', created_at: iso(-20), completed_at: null },
+      { order_no: 1009, bags: 4, status: 'completed', created_at: iso(-200), completed_at: iso(-30) }],
   };
   window.__writes = [];
   function builder(table) {
