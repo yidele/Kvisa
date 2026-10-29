@@ -4,7 +4,14 @@
 alter table public.clients add column israel_phone text;
 create index clients_israel_phone_key_idx on public.clients (public.phone_key(israel_phone));
 
-drop function public.kiosk_submit(text, text, integer, uuid, text);
+-- The first tablet version's kiosk_submit(name, phone, bags, key, notes) is kept but retired:
+-- a tablet still showing the old page is asked to reload instead of creating a one-phone client.
+create or replace function public.kiosk_submit(p_name text, p_phone text, p_bags integer,
+  p_request_key uuid, p_notes text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  raise exception 'KVISA_VALIDATION: this tablet page is out of date. Please reload the page';
+end $$;
 
 create or replace function public.kiosk_submit(p_first text, p_middle text, p_last text,
   p_phone text, p_israel_phone text, p_bags integer, p_request_key uuid)
