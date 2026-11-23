@@ -151,6 +151,41 @@ def main():
         check('settings save the chosen WhatsApp group', upd and upd[-1]['values']['wa_group_id'] == '120363000000000002@g.us' and upd[-1]['values']['wa_group_name'] == 'Family', upd[-1:] if upd else upd)
         page.screenshot(path=str(SHOTS / 'settings-messaging.png'))
 
+        # SMS consent: operator approves, issues a one-time code; settings refuse to switch SMS on half-configured
+        errors.clear()
+        page.goto(f'{base}/index.html#/people/{PERSON}'); wait_page(page)
+        card = page.inner_text('[data-sms-card]')
+        check('person page shows SMS is off and the person is not approved', 'switched off' in card and 'Not approved for texts' in card, card)
+        page.click('[data-act=sms-approve]')
+        page.wait_for_selector('.modal')
+        check('approval explains that nothing is sent', 'sends nothing' in page.inner_text('.modal'))
+        page.click('.modal button[type=submit]')
+        page.wait_for_selector('.modal', state='detached')
+        appr = [w for w in page.evaluate('window.__writes') if w.get('rpc') == 'sms_approve']
+        check('approve calls the server with this person only', appr and appr[-1]['args']['p_person'] == PERSON, appr)
+        page.goto(f'{base}/index.html#/people/00000000-0000-0000-0000-0000000000c3'); wait_page(page)
+        page.click('[data-act=sms-code]')
+        page.wait_for_selector('.modal .sms-code')
+        mt = page.inner_text('.modal')
+        check('code is shown once with JOIN instructions, the last 4 digits and the disclosure (escaped)',
+              '482913' in mt and 'JOIN 482913' in mt and '0143' in mt and 'program number not set' in mt and '<b>not real</b>' in mt and not errors, (mt[:300], errors[:2]))
+        page.screenshot(path=str(SHOTS / 'sms-code.png'))
+        page.click('.modal-foot [data-close]')
+        page.wait_for_selector('.modal', state='detached')
+        page.goto(f'{base}/index.html#/people/00000000-0000-0000-0000-0000000000a1'); wait_page(page)
+        check('an enrolled person shows as receiving texts', 'Receiving texts' in page.inner_text('[data-sms-card]'))
+        page.goto(f'{base}/index.html#/settings'); wait_page(page)
+        page.click('#sms summary')
+        page.check('#sms input[name=sms_enabled]')
+        before = len(page.evaluate('window.__writes'))
+        page.click('#sms form[data-save=sms] button.btn-primary')
+        page.wait_for_timeout(400)
+        toasts = page.inner_text('#toasts')
+        new = [w for w in page.evaluate('window.__writes')[before:] if w.get('table') == 'organization_settings']
+        check('SMS cannot be switched on while program details are missing (nothing saved)',
+              'can’t be switched on yet' in toasts and 'terms URL' in toasts and not new, (toasts, new))
+        page.screenshot(path=str(SHOTS / 'settings-sms.png'))
+
         # escaping of user-supplied text
         page.goto(f'{base}/index.html#/orders/{ORDER}'); wait_page(page)
         check('user text is escaped (no script injection)', '<script>alert(1)</script>' in page.inner_text('main') and not errors, errors[:2])

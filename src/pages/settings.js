@@ -15,12 +15,13 @@ const ROLE_LABELS = { admin: 'Administrator', dispatcher: 'Dispatcher', driver: 
 
 export async function render(root) {
   async function draw() {
-    const [s, cats, users, uroles, invites] = await Promise.all([
+    const [s, cats, users, uroles, invites, disclosures] = await Promise.all([
       run(sb.from('organization_settings').select('*').eq('id', 1).single()),
       run(sb.from('client_categories').select('*').order('sort_order')),
       run(sb.from('profiles').select('*').order('email')),
       run(sb.from('user_roles').select('*')),
       run(sb.from('invites').select('*').is('used_at', null).order('created_at', { ascending: false })),
+      run(sb.from('sms_disclosures').select('*').order('created_at', { ascending: false })),
     ]);
     await loadPeople(true);
     const zones = (Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [s.time_zone]);
@@ -75,7 +76,6 @@ export async function render(root) {
           <button type="button" class="btn" data-action="load-groups">Load my groups</button>
         </div>
         <input type="hidden" name="wa_group_name" value="${s.wa_group_name || ''}">
-        <label class="check"><input type="checkbox" name="sms_enabled" ${s.sms_enabled ? raw('checked') : ''}> Send job posts by text message (SMS) to each driver</label>
         <div class="row">
           <label class="field"><span>Country code for local phone numbers</span><input name="phone_country_code" inputmode="numeric" maxlength="4" value="${s.phone_country_code || '1'}">
             <small class="hint">Phones on people's profiles without a “+” are taken as this country (1 = US/Canada).</small></label>
@@ -90,6 +90,48 @@ export async function render(root) {
           <p class="muted">YOUR_SECRET is the MESSAGING_WEBHOOK_SECRET you set for the function. Full steps: docs/OPERATIONS.md §8.</p>
         </details>
         <button class="btn btn-primary">Save</button></form>`)}
+      ${sec('sms', 'Text messages (SMS): program details & consent', html`
+        <p class="notice notice-info">Texts go only to people you approve on their profile who then text <strong>JOIN</strong> + their one-time code
+          from that phone and reply <strong>YES</strong>. STOP ends it immediately. Text messages stay <strong>off</strong> until every field
+          marked * is filled in and you switch them on. The wording below is a draft for review.</p>
+        <form data-save="sms" novalidate>
+          <div class="row">
+            <label class="field"><span>Program name *</span><input name="sms_program_name" maxlength="30" value="${s.sms_program_name || ''}"></label>
+            <label class="field"><span>Texting number * (+1…)</span><input name="sms_program_number" placeholder="+1…" value="${s.sms_program_number || ''}"></label>
+          </div>
+          <div class="row">
+            <label class="field"><span>Support email (email or phone *)</span><input name="sms_support_email" type="email" value="${s.sms_support_email || ''}"></label>
+            <label class="field"><span>Support phone</span><input name="sms_support_phone" value="${s.sms_support_phone || ''}"></label>
+          </div>
+          <div class="row">
+            <label class="field grow"><span>Terms page URL * (https://)</span><input name="sms_terms_url" value="${s.sms_terms_url || ''}"></label>
+            <label class="field grow"><span>Privacy policy URL * (https://)</span><input name="sms_privacy_url" value="${s.sms_privacy_url || ''}"></label>
+          </div>
+          <div class="row">
+            <label class="field"><span>Drivers are *</span><select name="sms_participant_type">
+              <option value="">— choose —</option>
+              <option value="volunteer" ${s.sms_participant_type === 'volunteer' ? raw('selected') : ''}>Unpaid volunteers</option>
+              <option value="paid" ${s.sms_participant_type === 'paid' ? raw('selected') : ''}>Paid drivers</option></select></label>
+            <label class="field"><span>Max texts per person per day *</span><input name="sms_max_per_day" type="number" min="1" max="50" value="${s.sms_max_per_day ?? ''}"></label>
+            <label class="field"><span>Keep message logs (days) *</span><input name="sms_retention_days" type="number" min="30" max="3650" value="${s.sms_retention_days ?? ''}"></label>
+            <label class="field"><span>Enrollment code valid (hours)</span><input name="sms_code_ttl_hours" type="number" min="1" max="336" value="${s.sms_code_ttl_hours ?? 72}"></label>
+          </div>
+          <label class="check"><input type="checkbox" name="sms_help_reply_by_app" ${s.sms_help_reply_by_app ? raw('checked') : ''}>
+            Answer HELP from the app (leave off if Twilio is set up to answer HELP)</label>
+          <p class="muted">Disclosure version people agree to: <strong>${s.sms_consent_version || 'none yet *'}</strong></p>
+          <label class="check"><input type="checkbox" name="sms_enabled" ${s.sms_enabled ? raw('checked') : ''}> <strong>Text messages switched on</strong></label>
+          <button class="btn btn-primary">Save</button>
+        </form>
+        <h3>Written disclosure versions</h3>
+        <p class="muted">The exact text a person is given before they choose to text JOIN. A saved version can't be edited — add a new one instead.</p>
+        ${disclosures.length ? html`<ul class="list">${disclosures.map((d) => html`<li><div><strong>${d.version}</strong>
+          ${d.version === s.sms_consent_version ? html`<span class="badge tone-done">current</span>` : ''}
+          <pre class="msg-preview">${d.body}</pre></div></li>`)}</ul>` : html`<p>None yet.</p>`}
+        <form data-save="sms_disclosure" novalidate class="row wrap">
+          <label class="field"><span>New version name *</span><input name="version" maxlength="30" placeholder="e.g. 2026-12-v1"></label>
+          <label class="field grow"><span>Disclosure text *</span><textarea name="body" rows="4" maxlength="2000"></textarea></label>
+          <button class="btn">Save as current version</button>
+        </form>`)}
       ${sec('disc', 'Bag-count discrepancy rules', html`<form data-save="disc">
         <label class="check"><input type="checkbox" name="flag_collection_vs_expected" ${s.flag_collection_vs_expected ? raw('checked') : ''}>
           Flag a discrepancy when the bags collected differ from the number the client said</label>
@@ -186,11 +228,46 @@ export async function render(root) {
           if (!/^[1-9]\d{0,3}$/.test(cc)) throw new Error('Country code must be 1 to 4 digits, e.g. 1 or 972.');
           if (v.wa_enabled && !v.wa_group_pick) throw new Error('Choose the WhatsApp group (press “Load my groups”).');
           const opt = form.querySelector('[data-groups] option:checked');
-          await upd({ wa_enabled: !!v.wa_enabled, sms_enabled: !!v.sms_enabled, phone_country_code: cc,
+          await upd({ wa_enabled: !!v.wa_enabled, phone_country_code: cc,
             wa_group_id: v.wa_group_pick || null, wa_group_name: v.wa_group_pick ? (opt?.textContent.trim() || v.wa_group_name || null) : null,
             msg_send_address: !!v.msg_send_address, msg_post_intro: (v.msg_post_intro || '').trim() || 'Jobs available — reply privately with the number you can take:' });
           break;
         }
+        case 'sms': {
+          const t = (k) => String(v[k] || '').trim();
+          const num = (k, min, max, label) => {
+            if (!t(k)) return null;
+            const n = Number(t(k));
+            if (!Number.isInteger(n) || n < min || n > max) throw new Error(`${label} must be a whole number from ${min} to ${max}.`);
+            return n;
+          };
+          if (t('sms_program_number') && !/^\+[1-9]\d{7,14}$/.test(t('sms_program_number'))) throw new Error('Texting number must look like +18455551234.');
+          for (const k of ['sms_terms_url', 'sms_privacy_url']) if (t(k) && !/^https:\/\//.test(t(k))) throw new Error('Terms and privacy links must start with https://');
+          const patch = {
+            sms_program_name: t('sms_program_name') || 'KVISA', sms_program_number: t('sms_program_number') || null,
+            sms_support_email: t('sms_support_email') || null, sms_support_phone: t('sms_support_phone') || null,
+            sms_terms_url: t('sms_terms_url') || null, sms_privacy_url: t('sms_privacy_url') || null,
+            sms_participant_type: t('sms_participant_type') || null,
+            sms_max_per_day: num('sms_max_per_day', 1, 50, 'Max texts per day'),
+            sms_retention_days: num('sms_retention_days', 30, 3650, 'Log retention'),
+            sms_code_ttl_hours: num('sms_code_ttl_hours', 1, 336, 'Code validity') ?? 72,
+            sms_help_reply_by_app: !!v.sms_help_reply_by_app, sms_enabled: !!v.sms_enabled,
+          };
+          if (patch.sms_enabled) {
+            const missing = [['sms_program_number', 'texting number'], ['sms_terms_url', 'terms URL'], ['sms_privacy_url', 'privacy URL'],
+              ['sms_participant_type', 'volunteer or paid'], ['sms_max_per_day', 'max texts per day'], ['sms_retention_days', 'log retention']]
+              .filter(([k]) => patch[k] == null).map(([, l]) => l);
+            if (!patch.sms_support_email && !patch.sms_support_phone) missing.push('support email or phone');
+            if (!state.ctx.settings.sms_consent_version) missing.push('a disclosure version');
+            if (missing.length) throw new Error('Text messages can’t be switched on yet. Missing: ' + missing.join(', ') + '.');
+          }
+          await upd(patch);
+          break;
+        }
+        case 'sms_disclosure':
+          if (!String(v.version || '').trim() || String(v.body || '').trim().length < 40) throw new Error('Enter a version name and the full disclosure text (at least 40 characters).');
+          await rpc('sms_add_disclosure', { p_version: v.version.trim(), p_body: v.body.trim(), p_make_current: true });
+          break;
         case 'dispatch': {
           const m = String(v.default_offer_minutes || '').trim();
           if (m && (!/^\d+$/.test(m) || Number(m) < 5 || Number(m) > 10080)) throw new Error('Offer time must be 5 to 10080 minutes, or blank.');
@@ -232,7 +309,7 @@ export async function render(root) {
       toast('Saved.');
       await draw();
       showMessagingStatus();
-      const sec = form.dataset.save === 'invite' ? 'users' : form.dataset.save;
+      const sec = form.dataset.save === 'invite' ? 'users' : form.dataset.save === 'sms_disclosure' ? 'sms' : form.dataset.save;
       root.querySelector('#' + sec)?.setAttribute('open', '');
     } catch (err) { toast(err.message, 'error'); }
     finally { if (btn && btn.isConnected) btn.disabled = false; }

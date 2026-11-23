@@ -22,6 +22,9 @@
     status_labels: {}, task_type_labels: {},
     wa_enabled: true, wa_group_id: '120363000000000001@g.us', wa_group_name: 'Kvisa Drivers', sms_enabled: false,
     phone_country_code: '1', msg_send_address: true, msg_post_intro: 'Jobs available — reply privately with the number you can take:',
+    sms_program_name: 'KVISA', sms_program_number: null, sms_support_email: null, sms_support_phone: null, sms_terms_url: null,
+    sms_privacy_url: null, sms_retention_days: null, sms_participant_type: null, sms_max_per_day: null, sms_consent_version: 'test-v1',
+    sms_code_ttl_hours: 72, sms_help_reply_by_app: false,
   };
   const O = '11111111-1111-1111-1111-111111111111';
   const C = '22222222-2222-2222-2222-222222222222';
@@ -93,6 +96,13 @@
       { id: 'mi1', channel: 'whatsapp', provider_message_id: 'w1', from_address: '17185550101', person_id: people[0].id, body: '1', outcome: 'take', detail: 'Job 1 is yours: Return collection (K-1001)\nBags: 4', received_at: iso(-1.5) },
       { id: 'mi2', channel: 'sms', provider_message_id: 's1', from_address: '19995550000', person_id: null, body: 'who is this? <script>alert(2)</script>', outcome: 'unknown_sender', detail: null, received_at: iso(-1) },
     ],
+    sms_disclosures: [{ version: 'test-v1', body: 'SYNTHETIC TEST DISCLOSURE <b>not real</b>: frequency varies, msg & data rates may apply, STOP, HELP.', created_at: iso(-50) }],
+    sms_enrollments: [
+      { id: 'se1', person_id: people[0].id, phone_e164: '17185550141', disclosure_version: 'test-v1', status: 'active', approved_at: iso(-40),
+        joined_at: iso(-39), confirmed_at: iso(-39), code_expires_at: null, ended_reason: null },
+      { id: 'se2', person_id: people[2].id, phone_e164: '17185550143', disclosure_version: 'test-v1', status: 'approved', approved_at: iso(-2),
+        joined_at: null, confirmed_at: null, code_expires_at: null, ended_reason: null },
+    ],
     offer_recipients: [{ offer_id: 'off1', order_id: O, person_id: people[0].id, response: 'declined' }, { offer_id: 'off1', order_id: O, person_id: people[2].id, response: 'declined' }],
   };
   const ctx = { user_id: 'u1', email: 'admin@test', full_name: role === 'admin' ? 'Admin User' : 'Avi Driver', active: true,
@@ -120,10 +130,13 @@
     job_post_preview: { body: 'Jobs available — reply privately with the number you can take:\n\n1. Return collection — Maple Avenue → Other St — 3 bags\n\nReply privately with the job number (e.g. 2). Reply DONE when you finish.', items: [] },
     post_jobs: { post_id: 'jp2', post_no: 2, jobs: 1, first_no: 1, last_no: 1, whatsapp: true, sms: 0, body: 'x' },
     outbox_retry: null, outbox_cancel: null,
+    sms_approve: 'se-new', sms_revoke: null, sms_add_disclosure: null,
+    sms_issue_code: { code: '482913', expires_at: iso(72), phone_last4: '0143', program_number: null, disclosure_version: 'test-v1',
+      disclosure: 'SYNTHETIC TEST DISCLOSURE <b>not real</b>' },
   };
   window.__writes = [];
   function builder(table) {
-    const state = { table, single: false, maybe: false, head: false, count: false, write: null };
+    const state = { table, single: false, maybe: false, head: false, count: false, write: null, eq: [] };
     const target = {};
     const handler = {
       get(_, prop) {
@@ -131,6 +144,8 @@
           return (resolve, reject) => {
             if (table === '__fail') return resolve({ data: null, error: { message: 'boom' } });
             let rows = fixtures[table] ? JSON.parse(JSON.stringify(fixtures[table])) : [];
+            // most tables ignore filters; SMS approvals honour .eq() so each profile shows its own state
+            if (table === 'sms_enrollments') for (const [k, v] of state.eq) rows = rows.filter((r) => r[k] === v);
             if (state.write) { window.__writes.push({ table, ...state.write }); rows = state.write.values ? [Object.assign({ id: 'new-id', client_no: 99 }, state.write.values)] : rows; }
             if (state.single || state.maybe) return Promise.resolve({ data: rows[0] || null, error: null }).then(resolve, reject);
             return Promise.resolve({ data: state.head ? null : rows, error: null, count: state.count ? rows.length : null }).then(resolve, reject);
@@ -138,6 +153,7 @@
         }
         return (...args) => {
           if (prop === 'single') state.single = true;
+          if (prop === 'eq' && !state.write) state.eq.push(args);
           if (prop === 'maybeSingle') state.maybe = true;
           if (prop === 'select' && args[1] && args[1].head) state.head = true;
           if (prop === 'select' && args[1] && args[1].count) state.count = true;

@@ -41,6 +41,14 @@ export async function twilioSignature(authToken, url, params) {
   return btoa(bin);
 }
 
+// A genuine Twilio webhook for OUR account: the signature must match the exact public URL, and
+// the AccountSid in the request must be ours. Missing auth token or account id → reject.
+export async function verifyTwilioRequest({ authToken, accountSid, publicUrl }, search, params, signature) {
+  if (!authToken || !accountSid || !signature) return false;
+  if (params.get('AccountSid') !== accountSid) return false;
+  return safeEqual(signature, await twilioSignature(authToken, `${publicUrl}${search}`, params));
+}
+
 export function safeEqual(a, b) {
   a = String(a ?? ''); b = String(b ?? '');
   if (!a || a.length !== b.length) return false;
@@ -95,7 +103,7 @@ export async function readSendResult(channel, res) {
   try { data = JSON.parse(text); } catch { /* not JSON */ }
   if (!res.ok) {
     const msg = data?.error?.message || data?.message || data?.error || text || res.statusText;
-    return { ok: false, error: `HTTP ${res.status}: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`.slice(0, 900) };
+    return { ok: false, code: data?.code ?? null, error: `HTTP ${res.status}: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`.slice(0, 900) };
   }
   if (channel === 'whatsapp') {
     if (data && data.sent === false) return { ok: false, error: 'WhatsApp did not accept the message' };
@@ -103,6 +111,9 @@ export async function readSendResult(channel, res) {
   }
   return { ok: true, id: data?.sid || null };
 }
+
+// Twilio error 21610: the recipient opted out at the carrier / Twilio level.
+export const isTwilioOptOut = (r) => !r.ok && Number(r.code) === 21610;
 
 // Whapi GET /groups → [{ id, name }]
 export function parseGroups(data) {

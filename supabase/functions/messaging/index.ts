@@ -10,7 +10,7 @@
 // Deploy with JWT verification OFF (webhooks carry no Supabase token); every route checks
 // its own credentials. Secrets: see docs/OPERATIONS.md §8.
 import {
-  parseWhapiWebhook, parseTwilioForm, twilioSignature, safeEqual,
+  parseWhapiWebhook, parseTwilioForm, verifyTwilioRequest, isTwilioOptOut, safeEqual,
   whapiSendRequest, twilioSendRequest, readSendResult, parseGroups, splitSms,
 } from './lib.js';
 
@@ -52,7 +52,7 @@ async function sendOne(row: any) {
     return readSendResult('whatsapp', await fetch(url, init));
   }
   if (!TWILIO.accountSid || !TWILIO.authToken || !TWILIO.from) return { ok: false, error: 'SMS is not connected (Twilio secrets are not set)' };
-  let first: { ok: boolean; id?: string | null; error?: string } | null = null;
+  let first: { ok: boolean; id?: string | null; error?: string; code?: number | null } | null = null;
   for (const part of splitSms(row.body)) {
     const { url, init } = twilioSendRequest({ ...row, body: part }, TWILIO);
     const r = await readSendResult('sms', await fetch(url, init));
@@ -64,15 +64,19 @@ async function sendOne(row: any) {
 
 async function flush() {
   const rows = (await db('outbox_claim', { p_limit: 100 })) || [];
-  let sent = 0, failed = 0;
+  let sent = 0, failed = 0, blocked = 0;
   for (const row of rows) {
-    let r: { ok: boolean; id?: string | null; error?: string };
+    // Last check right before the provider call (opt-outs, revocations, SMS switched off).
+    // A non-null reason means the database has already cancelled the message.
+    if (await db('outbox_precheck', { p_id: row.id })) { blocked++; continue; }
+    let r: { ok: boolean; id?: string | null; error?: string; code?: number | null };
     try { r = await sendOne(row); } catch (e) { r = { ok: false, error: String((e as Error)?.message || e) }; }
     await db('outbox_finish', { p_id: row.id, p_ok: r.ok, p_provider_id: r.id ?? null, p_error: r.error ?? null });
+    if (row.channel === 'sms' && isTwilioOptOut(r)) await db('sms_carrier_optout', { p_phone: row.to_address });
     r.ok ? sent++ : failed++;
     if (row.channel === 'whatsapp') await sleep(400);   // keep WhatsApp traffic human-paced
   }
-  return { sent, failed };
+  return { sent, failed, blocked };
 }
 
 // ---------------- incoming ----------------
@@ -87,8 +91,9 @@ async function handleWhatsApp(req: Request) {
 
 async function handleSms(req: Request, url: URL) {
   const params = new URLSearchParams(await req.text());
-  const expected = await twilioSignature(TWILIO.authToken, `${PUBLIC_URL}${url.search}`, params);
-  if (!TWILIO.authToken || !safeEqual(req.headers.get('X-Twilio-Signature'), expected)) return new Response('Forbidden', { status: 403 });
+  const genuine = await verifyTwilioRequest({ authToken: TWILIO.authToken, accountSid: TWILIO.accountSid, publicUrl: PUBLIC_URL },
+    url.search, params, req.headers.get('X-Twilio-Signature'));
+  if (!genuine) return new Response('Forbidden', { status: 403 });
   const m = parseTwilioForm(params);
   if (m) await db('message_inbound', { p_channel: 'sms', p_from: m.from, p_body: m.body, p_provider_id: m.id });
   await flush();

@@ -17,6 +17,7 @@ with a bag count recorded at every handoff, so you always know where the bags ar
 | `supabase/tests/business_rules.sql` | 59 database tests of the business rules (run inside a rolled-back transaction). |
 | `supabase/tests/dispatch_offers.sql` | 30 database tests of driver job offers and address privacy. |
 | `supabase/tests/messaging.sql` | 42 database tests of WhatsApp/SMS job posts and replies. |
+| `supabase/tests/sms_consent.sql` | 55 database tests of SMS consent: approval, JOIN code, YES, STOP/HELP, send-time checks. |
 | `supabase/functions/messaging/` | Edge Function that sends WhatsApp (Whapi.Cloud) and SMS (Twilio) messages and receives replies. |
 | `tests/unit/` | Unit tests for dates/time zones, validation, CSV (`npm test`). |
 | `tests/e2e/` | Browser smoke tests of every page with a fake database (`npm run test:e2e`). |
@@ -51,6 +52,7 @@ Database tests (in the Supabase SQL editor, or via the Supabase connector):
 select * from kvisa_tests.run();          -- business rules; nothing is saved
 select * from kvisa_tests.run_offers();   -- dispatch offers & address privacy
 select * from kvisa_tests.run_messaging(); -- WhatsApp/SMS posts and replies
+select * from kvisa_tests.run_sms();       -- SMS consent and safety
 ```
 
 See [docs/OPERATIONS.md](docs/OPERATIONS.md) for setup, deployment, backups and recovery, and

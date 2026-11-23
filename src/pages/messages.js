@@ -6,12 +6,15 @@ import { orderNo, taskLabel, fmtDateTime, relativeTime } from '../lib/format.js'
 import { postJobsModal } from '../components/postJobs.js';
 
 const CHANNEL = { whatsapp: 'WhatsApp', sms: 'Text' };
-const PURPOSE = { post: 'Job post', covered: 'Covered', reply: 'Reply' };
+const PURPOSE = { post: 'Job post', covered: 'Covered', reply: 'Reply', sms_confirm: 'Enrollment confirmation', help: 'HELP reply' };
 const SEND_TONE = { pending: 'neutral', sending: 'progress', sent: 'done', failed: 'danger', cancelled: 'muted' };
 const SEND_LABEL = { pending: 'Waiting', sending: 'Sending', sent: 'Sent', failed: 'Failed', cancelled: 'Cancelled' };
 const OUTCOME = {
   take: ['Took a job', 'done'], done: ['Marked done', 'done'], ignored: ['Chat (no auto-reply)', 'neutral'],
   unknown_sender: ['Unknown number', 'warn'], error: ['Error', 'danger'],
+  opt_out: ['Opted out (STOP)', 'danger'], help: ['Asked for HELP', 'neutral'], start_ignored: ['START (no change)', 'neutral'],
+  join: ['Enrolled (JOIN)', 'done'], join_rejected: ['JOIN not accepted', 'warn'], confirmed: ['Confirmed (YES)', 'done'],
+  yes_ignored: ['YES (no change)', 'neutral'], not_enrolled: ['Not enrolled for texts', 'warn'],
 };
 const ITEM = { available: ['Open', 'warn'], accepted: ['Covered', 'done'], cancelled: ['Closed', 'muted'], expired: ['Expired', 'muted'], declined: ['Nobody took it', 'danger'] };
 

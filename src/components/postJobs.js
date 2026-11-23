@@ -34,7 +34,7 @@ export async function postJobsModal() {
         <span>WhatsApp group${s.wa_group_name ? html` <strong>${s.wa_group_name}</strong>` : ''}
         ${waReady ? '' : html`<small class="muted">— not set up (Settings → WhatsApp & text messages)</small>`}</span></label>
       <label class="check"><input type="checkbox" name="ch_sms" ${smsReady ? raw('checked') : raw('disabled')}>
-        <span>Text message (SMS) to each driver
+        <span>Text message (SMS) to drivers enrolled for texts
         ${smsReady ? '' : html`<small class="muted">— not set up (Settings → WhatsApp & text messages)</small>`}</span></label>
       <small class="hint">Untick both to offer the jobs in the app only.</small>
     </fieldset>

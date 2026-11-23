@@ -1,4 +1,5 @@
--- Kvisa WhatsApp/SMS job-post & reply tests. Requires business_rules.sql (kvisa_tests.t / act_as).
+-- Kvisa WhatsApp/SMS job-post & reply tests. Requires business_rules.sql (kvisa_tests.t / act_as)
+-- and sms_consent.sql (kvisa_tests.sms_configure / sms_enroll).
 -- Usage: select * from kvisa_tests.run_messaging();   -- everything is rolled back
 
 create or replace function kvisa_tests.run_messaging()
@@ -18,7 +19,7 @@ begin
     grant execute on all functions in schema kvisa_tests to authenticated;
     perform kvisa_tests.act_as(null);
     update public.organization_settings set phone_country_code = '1', wa_enabled = false, sms_enabled = false,
-      wa_group_id = null, msg_send_address = true where id = 1;
+      wa_group_id = null, msg_send_address = true, sms_help_reply_by_app = false where id = 1;
 
     -- ---- phone numbers ----
     res := res || kvisa_tests.t('M0 Phone numbers are normalised for sending and matching',
@@ -59,7 +60,12 @@ begin
     exception when others then v_ok := sqlerrm like '%WhatsApp is not set up%'; end;
     res := res || kvisa_tests.t('M1 Posting to WhatsApp is refused until WhatsApp is set up', v_ok);
     perform kvisa_tests.act_as(null);
-    update public.organization_settings set wa_enabled = true, sms_enabled = true, wa_group_id = grp where id = 1;
+    update public.organization_settings set wa_enabled = true, wa_group_id = grp where id = 1;
+    -- SMS needs the program settings and each driver's own enrollment (migration 012)
+    perform kvisa_tests.sms_configure();
+    perform kvisa_tests.sms_enroll(u_disp, p_a);
+    perform kvisa_tests.sms_enroll(u_disp, p_b);
+    perform kvisa_tests.sms_enroll(u_disp, p_c);
 
     -- ---- post two jobs to the group and by SMS ----
     perform kvisa_tests.act_as(u_disp);

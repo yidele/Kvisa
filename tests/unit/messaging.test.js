@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseWhapiWebhook, parseTwilioForm, twilioSignature, safeEqual,
-  whapiSendRequest, twilioSendRequest, readSendResult, parseGroups, splitSms,
+  whapiSendRequest, twilioSendRequest, readSendResult, parseGroups, splitSms, verifyTwilioRequest, isTwilioOptOut,
 } from '../../supabase/functions/messaging/lib.js';
 
 test('WhatsApp webhook: only private text messages from other people', () => {
@@ -92,4 +92,30 @@ test('long texts are split at line breaks under the SMS limit', () => {
   assert.ok(parts.slice(1).every((p) => /^\d+\. Pickup/.test(p)), 'each part starts on a whole job line');
   assert.deepEqual(splitSms('short'), ['short']);
   assert.ok(splitSms('x'.repeat(3200)).every((p) => p.length <= 1500));
+});
+
+test('SMS webhook is accepted only with a valid signature for our account', async () => {
+  const cfg = { authToken: 'synthetic-token', accountSid: 'AC00000000000000000000000000000000', publicUrl: 'https://example.test/functions/v1/messaging' };
+  const search = '?hook=sms&secret=x';
+  const params = new URLSearchParams({ AccountSid: cfg.accountSid, From: '+12125550141', Body: 'JOIN 123456', MessageSid: 'SM1' });
+  const good = await twilioSignature(cfg.authToken, cfg.publicUrl + search, params);
+  assert.equal(await verifyTwilioRequest(cfg, search, params, good), true);
+  assert.equal(await verifyTwilioRequest(cfg, search, params, null), false, 'missing signature');
+  assert.equal(await verifyTwilioRequest(cfg, '?hook=sms&secret=y', params, good), false, 'different URL');
+  const tampered = new URLSearchParams(params); tampered.set('Body', 'STOP');
+  assert.equal(await verifyTwilioRequest(cfg, search, tampered, good), false, 'tampered body');
+  const otherAcct = new URLSearchParams(params); otherAcct.set('AccountSid', 'AC11111111111111111111111111111111');
+  const otherSig = await twilioSignature(cfg.authToken, cfg.publicUrl + search, otherAcct);
+  assert.equal(await verifyTwilioRequest(cfg, search, otherAcct, otherSig), false, 'another account');
+  assert.equal(await verifyTwilioRequest({ ...cfg, authToken: '' }, search, params, good), false, 'no auth token configured');
+  assert.equal(await verifyTwilioRequest({ ...cfg, accountSid: '' }, search, params, good), false, 'no account configured');
+});
+
+test('Twilio opt-out refusal (21610) is recognised', async () => {
+  const r = await readSendResult('sms', new Response(JSON.stringify({ code: 21610, message: 'Attempt to send to unsubscribed recipient' }), { status: 400 }));
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 21610);
+  assert.equal(isTwilioOptOut(r), true);
+  assert.equal(isTwilioOptOut({ ok: false, code: 21608 }), false);
+  assert.equal(isTwilioOptOut({ ok: true, id: 'SM1' }), false);
 });

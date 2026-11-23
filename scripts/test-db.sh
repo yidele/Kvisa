@@ -13,7 +13,7 @@ for f in supabase/tests/*.sql; do run -f "$f"; done
 psql -X -A -t -d "$DB" -c "
   select case when ok then 'PASS ' else 'FAIL ' end || test || coalesce(case when not ok then ' — ' || detail end, '')
   from (select * from kvisa_tests.run() union all select * from kvisa_tests.run_offers()
-        union all select * from kvisa_tests.run_messaging()) t" | tee /tmp/kvisa_db_tests.txt
+        union all select * from kvisa_tests.run_messaging() union all select * from kvisa_tests.run_sms()) t" | tee /tmp/kvisa_db_tests.txt
 dropdb "$DB"
 fails=$(grep -c '^FAIL' /tmp/kvisa_db_tests.txt || true)
 echo "$(grep -c '^PASS' /tmp/kvisa_db_tests.txt) passed, $fails failed"

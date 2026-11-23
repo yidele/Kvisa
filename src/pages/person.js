@@ -5,6 +5,38 @@ import { pageHeader, loading, errorState, emptyState, toast, openModal, telLink,
 import { WEEKDAYS, personNo, orderNo, taskLabel, fmtDateTime, parseBagCount } from '../lib/format.js';
 import { app } from '../lib/app.js';
 
+// Text-message (SMS) approval states. Texts go only to people an operator approved who then
+// enrolled themselves (JOIN + code from the approved phone) and replied YES — see migration 012.
+const SMS_STATUS = {
+  approved: ['Approved — give them an enrollment code', 'warn'], code_issued: ['Code issued — waiting for their JOIN text', 'warn'],
+  joined: ['Joined — waiting for their YES', 'warn'], active: ['Receiving texts', 'done'],
+  opted_out: ['Opted out (STOP)', 'danger'], revoked: ['Ended', 'muted'],
+};
+const OPEN_SMS = ['approved', 'code_issued', 'joined', 'active'];
+
+function smsCard(p, rows) {
+  const s = settings();
+  const cur = rows.find((r) => OPEN_SMS.includes(r.status));
+  const [label, tone] = cur ? SMS_STATUS[cur.status] : ['Not approved for texts', 'neutral'];
+  const canApprove = !cur && p.active && p.phone && p.roles.length;
+  return html`<section class="card" data-sms-card><h2>Text messages (SMS)</h2>
+    ${s.sms_enabled ? '' : html`<p class="notice notice-info">Text messages are switched off (Settings). You can still prepare approvals; nothing is sent.</p>`}
+    <p><span class="badge tone-${tone}">${label}</span>
+      ${cur?.status === 'code_issued' && cur.code_expires_at ? html` <small class="muted">code expires ${fmtDateTime(cur.code_expires_at, tz())}</small>` : ''}
+      ${cur ? html` <small class="muted">· disclosure ${cur.disclosure_version} · number ending ${cur.phone_e164.slice(-4)}</small>` : ''}</p>
+    <div class="actions-row">
+      ${canApprove ? html`<button class="btn btn-sm" data-act="sms-approve">Approve for texts…</button>` : ''}
+      ${cur && ['approved', 'code_issued'].includes(cur.status) ? html`<button class="btn btn-sm btn-primary" data-act="sms-code" data-id="${cur.id}">${cur.status === 'approved' ? 'Issue enrollment code…' : 'Issue a new code…'}</button>` : ''}
+      ${cur ? html`<button class="btn btn-sm btn-danger-ghost" data-act="sms-revoke" data-id="${cur.id}">End approval…</button>` : ''}
+    </div>
+    ${!cur && !p.phone ? html`<p class="muted">Add a mobile number first.</p>` : ''}
+    ${rows.length ? html`<details><summary class="muted">History (${rows.length})</summary><ul class="list compact">${rows.map((r) => html`<li>
+      <span>${(SMS_STATUS[r.status] || [r.status])[0]} · approved ${fmtDateTime(r.approved_at, tz())}
+        ${r.joined_at ? html` · JOIN ${fmtDateTime(r.joined_at, tz())}` : ''}${r.confirmed_at ? html` · YES ${fmtDateTime(r.confirmed_at, tz())}` : ''}
+        ${r.ended_reason ? html` · ${r.ended_reason}` : ''}</span></li>`)}</ul></details>` : ''}
+  </section>`;
+}
+
 function personForm(p, presetRole) {
   const days = p.preferred_days || [];
   const r = p.roles || (presetRole ? [presetRole] : []);
@@ -95,11 +127,12 @@ export async function render(root, { params, query }) {
     await loadPeople(true);
     const p = state.people.find((x) => x.id === id);
     if (!p) throw new Error('Person not found.');
-    const [open, done, account, invite] = await Promise.all([
+    const [open, done, account, invite, smsRows] = await Promise.all([
       run(sb.from('task_calendar').select('*').eq('assignee_id', id).in('task_status', ['pending', 'in_progress']).neq('order_status', 'cancelled').order('scheduled_at')),
       run(sb.from('task_calendar').select('*').eq('assignee_id', id).eq('task_status', 'completed').order('completed_at', { ascending: false }).limit(100)),
       run(sb.from('profiles').select('id,email,active').eq('person_id', id).maybeSingle()),
       myRoles.admin ? run(sb.from('invites').select('*').eq('person_id', id).is('used_at', null).maybeSingle()) : Promise.resolve(null),
+      run(sb.from('sms_enrollments').select('*').eq('person_id', id).order('approved_at', { ascending: false })),
     ]);
     const bags = done.reduce((a, t) => a + (t.actual_bags || 0), 0);
     setHtml(root, html`
@@ -133,6 +166,7 @@ export async function render(root, { params, query }) {
             : emptyState('Nothing assigned', '')}
         </section>
       </div>
+      ${smsCard(p, smsRows)}
       <section class="card"><h2>Completed</h2>
         ${done.length ? html`<ul class="list">${done.map((t) => html`<li><a class="row-link" href="#/orders/${t.order_id}">
           <span>${taskLabel(t.task_type, settings())} · ${orderNo(t.order_no)} · ${t.client_name}</span>
@@ -172,6 +206,36 @@ export async function render(root, { params, query }) {
             if (!n) throw new Error('Choose who should take the tasks.');
             toast(`${n} task(s) reassigned.`); return true;
           },
+        });
+      } else if (el.dataset.act === 'sms-approve') {
+        changed = await openModal({
+          title: `Approve ${p.full_name} for text messages`,
+          body: html`<p>Approving sends <strong>nothing</strong>. It only allows ${p.full_name} to enroll themselves:
+              you give them the written disclosure and a one-time code, and they text <strong>JOIN</strong> + the code
+              from <strong>${p.phone}</strong>, then reply YES to the confirmation.</p>
+            <p class="muted">Disclosure version used: <strong>${settings().sms_consent_version || 'none yet — add one in Settings'}</strong></p>
+            <label class="field"><span>Note (optional, e.g. how the disclosure was handed over)</span><textarea name="note" rows="2" maxlength="500"></textarea></label>`,
+          submitLabel: 'Approve', guardUnsaved: false,
+          async onSubmit(v) { await rpc('sms_approve', { p_person: p.id, p_evidence_note: v.note || null }); toast('Approved. Nothing was sent.'); return true; },
+        });
+      } else if (el.dataset.act === 'sms-code') {
+        const r = await rpc('sms_issue_code', { p_enrollment: el.dataset.id });
+        await openModal({
+          title: 'Enrollment code', hideSubmit: true, cancelLabel: 'Done', guardUnsaved: false,
+          body: html`<p class="notice notice-warn">This code is shown only once. Give it to ${p.full_name} with the written disclosure below.</p>
+            <p class="sms-code" aria-label="Enrollment code">${r.code}</p>
+            <p>They text <strong>JOIN ${r.code}</strong> to <strong>${r.program_number || '[program number not set in Settings]'}</strong>
+              from their phone ending <strong>${r.phone_last4}</strong>. Expires ${fmtDateTime(r.expires_at, tz())}.</p>
+            <h3>Written disclosure (version ${r.disclosure_version})</h3><pre class="msg-preview">${r.disclosure || ''}</pre>`,
+        });
+        changed = true;
+      } else if (el.dataset.act === 'sms-revoke') {
+        changed = await openModal({
+          title: 'End text-message approval', danger: true, submitLabel: 'End approval', guardUnsaved: false,
+          body: html`<p>${p.full_name} will stop getting texts and anything waiting to be sent to them is cancelled.
+            To start again they need a new approval, a new code and a new JOIN.</p>
+            <label class="field"><span>Reason (optional)</span><input name="reason" maxlength="200"></label>`,
+          async onSubmit(v) { await rpc('sms_revoke', { p_enrollment: el.dataset.id, p_reason: v.reason || null }); toast('Approval ended.'); return true; },
         });
       } else if (el.dataset.act === 'invite') {
         changed = await openModal({

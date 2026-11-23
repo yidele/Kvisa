@@ -117,7 +117,35 @@ Every message sent or received is listed on **Messages**, where failed sends can
   what lets it post into your existing 60–70 person group and tag people. Meta’s official Business API cannot do that.
   **Risk:** WhatsApp does not officially allow linked automation, so the number can be banned. At a few posts a day,
   only to your own group and to people who wrote first, the risk is low but not zero.
-- SMS goes through **Twilio**.
+- SMS goes through **Twilio**, and only to people who enrolled themselves (below).
+
+### SMS consent and safety (migration `012_sms_consent.sql`, branch only — not live)
+
+Text messages are **off by default** and cannot be switched on until every required program detail is filled in
+(Settings → *Text messages (SMS)*): texting number, support email or phone, terms URL, privacy URL, volunteer-or-paid,
+max texts per day, log retention, and a saved disclosure version. None of these are pre-filled; they are the owner's
+decisions. The disclosure and the system texts are **drafts for review**, not approved wording.
+
+Enrollment (nothing is sent before step 3):
+1. An operator approves the person on their profile (*Approve for texts*). This sends nothing.
+2. The operator issues a single-use code (shown once, stored only as a hash, expires) and gives it to the person
+   together with the written disclosure (the saved version).
+3. The person texts **JOIN + code** from the approved phone. Any other number, a wrong/expired/used code, or
+   five wrong tries → nothing happens and nothing is sent back.
+4. One confirmation text goes out; texts start only after the person replies **YES** to it.
+
+Always:
+- Every text is checked when queued **and** again right before it is sent; anything not allowed is stored as cancelled
+  with the reason, never sent.
+- **STOP** (and STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT, REVOKE, OPTOUT) opts the number out, ends the approval and
+  cancels everything waiting for it. Twilio's own error 21610 is recorded the same way. **START, UNSTOP and YES never
+  re-enroll** — that needs a new approval, a new code and a new JOIN.
+- **HELP**: left to Twilio by default; the app can answer instead (setting), using only the configured support details.
+- A changed phone number or a deactivated person ends the approval.
+- Incoming texts must carry a valid Twilio signature for the exact webhook URL **and** our AccountSid; the same message
+  delivered twice is handled once.
+- Message logs are not yet deleted automatically: the retention setting is recorded but a deletion job is still to be
+  built (production gate).
 
 ### Setup (one time)
 

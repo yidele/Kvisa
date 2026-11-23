@@ -392,3 +392,5 @@ body.modal-open { overflow: hidden; }
 .post-list .grow { flex: 1 1 auto; min-width: 0; }
 .post-items { list-style: none; padding: 0; margin: .4rem 0; display: grid; gap: .3rem; }
 .settings-body .webhook { word-break: break-all; font-size: .85rem; }
+.sms-code { font-size: 2rem; font-weight: 700; letter-spacing: .3em; text-align: center; margin: .5rem 0; font-variant-numeric: tabular-nums; }
+.actions-row { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
