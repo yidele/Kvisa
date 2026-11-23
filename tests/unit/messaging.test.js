@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   parseWhapiWebhook, parseTwilioForm, twilioSignature, safeEqual,
   whapiSendRequest, twilioSendRequest, readSendResult, parseGroups, splitSms, verifyTwilioRequest, isTwilioOptOut,
+  classifyTwilioResponse, sendSmsParts,
 } from '../../supabase/functions/messaging/lib.js';
 
 test('WhatsApp webhook: only private text messages from other people', () => {
@@ -118,4 +119,72 @@ test('Twilio opt-out refusal (21610) is recognised', async () => {
   assert.equal(isTwilioOptOut(r), true);
   assert.equal(isTwilioOptOut({ ok: false, code: 21608 }), false);
   assert.equal(isTwilioOptOut({ ok: true, id: 'SM1' }), false);
+});
+
+// ---- per-part sending (synthetic; fake database + fake Twilio) ----
+const longBody = Array.from({ length: 50 }, (_, i) => `${i + 1}. Synthetic pickup line — Main St → Maple Ave — Tue 10:00 AM — 2 bags`).join('\n');
+const reply = (status, body) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
+function harness(beginAnswers, twilioAnswers) {
+  const log = { begin: [], sent: [], finish: [] };
+  return {
+    log,
+    deps: {
+      begin: async (n, count) => { log.begin.push([n, count]); return beginAnswers.shift() ?? 'send'; },
+      send: async (text) => { log.sent.push(text); const a = twilioAnswers.shift(); if (a instanceof Error) throw a; return a; },
+      finish: async (n, outcome, id, error) => { log.finish.push([n, outcome, id]); },
+    },
+  };
+}
+
+test('Twilio answers are classified without guessing', async () => {
+  assert.deepEqual(await classifyTwilioResponse(reply(201, { sid: 'SM1' })), { outcome: 'accepted', id: 'SM1' });
+  assert.equal((await classifyTwilioResponse(reply(200, { status: 'queued' }))).outcome, 'unknown', '2xx without SID');
+  assert.equal((await classifyTwilioResponse(reply(200, 'not json'))).outcome, 'unknown');
+  assert.equal((await classifyTwilioResponse(reply(500, 'oops'))).outcome, 'unknown');
+  assert.equal((await classifyTwilioResponse(reply(503, 'busy'))).outcome, 'unknown');
+  assert.equal((await classifyTwilioResponse(reply(408, 'timeout'))).outcome, 'unknown');
+  const refused = await classifyTwilioResponse(reply(400, { code: 21610, message: 'unsubscribed' }));
+  assert.equal(refused.outcome, 'failed'); assert.equal(refused.code, 21610);
+  assert.equal((await classifyTwilioResponse(reply(429, { code: 20429, message: 'Too Many Requests' }))).outcome, 'failed');
+});
+
+test('STOP between parts: the database refuses part 2, so only part 1 reaches Twilio', async () => {
+  assert.ok(splitSms(longBody).length >= 3);
+  const h = harness(['send', 'stop:the recipient opted out'], [reply(201, { sid: 'SM1' })]);
+  const r = await sendSmsParts({ body: longBody }, h.deps);
+  assert.deepEqual(r, { settled: true, stopped: 'stop:the recipient opted out' });
+  assert.equal(h.log.sent.length, 1);
+  assert.deepEqual(h.log.begin.map((b) => b[0]), [1, 2], 'asked before each part');
+  assert.deepEqual(h.log.finish, [[1, 'accepted', 'SM1']]);
+});
+
+test('Part 1 accepted, part 2 refused → message fails; the retry skips part 1 and sends part 2 only', async () => {
+  const count = splitSms(longBody).length;
+  const h1 = harness([], [reply(201, { sid: 'SM1' }), reply(400, { code: 21211, message: 'synthetic refusal' })]);
+  const r1 = await sendSmsParts({ body: longBody }, h1.deps);
+  assert.equal(r1.ok, false); assert.equal(r1.code, 21211);
+  assert.deepEqual(h1.log.finish.map((f) => f[1]), ['accepted', 'failed']);
+  assert.equal(h1.log.sent.length, 2, 'stops after the refused part');
+  const parts = splitSms(longBody);
+  const h2 = harness(['skip', ...Array(count - 1).fill('send')], parts.slice(1).map((_, i) => reply(201, { sid: 'SMr' + i })));
+  const r2 = await sendSmsParts({ body: longBody }, h2.deps);
+  assert.equal(r2.ok, true);
+  assert.equal(h2.log.sent[0], parts[1], 'retry starts with part 2');
+  assert.ok(!h2.log.sent.includes(parts[0]), 'part 1 is never resent');
+});
+
+test('Network error / timeout / 5xx: recorded as unclear, no further parts, no automatic resend', async () => {
+  for (const answer of [new TypeError('fetch failed'), reply(504, 'gateway timeout'), reply(200, {})]) {
+    const h = harness([], [answer, reply(201, { sid: 'never' })]);
+    const r = await sendSmsParts({ body: longBody }, h.deps);
+    assert.deepEqual(r, { settled: true, stopped: 'needs_review' });
+    assert.equal(h.log.sent.length, 1, 'nothing after the unclear part');
+    assert.equal(h.log.finish[0][1], 'unknown');
+  }
+});
+
+test('A short message is one part and is asked about once', async () => {
+  const h = harness([], [reply(201, { sid: 'SMone' })]);
+  assert.deepEqual(await sendSmsParts({ body: 'KVISA: synthetic short text' }, h.deps), { ok: true, id: 'SMone' });
+  assert.deepEqual(h.log.begin, [[1, 1]]);
 });

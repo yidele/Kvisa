@@ -11,7 +11,7 @@
 // its own credentials. Secrets: see docs/OPERATIONS.md §8.
 import {
   parseWhapiWebhook, parseTwilioForm, verifyTwilioRequest, isTwilioOptOut, safeEqual,
-  whapiSendRequest, twilioSendRequest, readSendResult, parseGroups, splitSms,
+  whapiSendRequest, twilioSendRequest, readSendResult, parseGroups, sendSmsParts,
 } from './lib.js';
 
 const env = (k: string) => Deno.env.get(k) || '';
@@ -45,33 +45,40 @@ async function db(fn: string, args: Record<string, unknown>) {
 // ---------------- sending ----------------
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function sendOne(row: any) {
-  if (row.channel === 'whatsapp') {
-    if (!WHAPI.token) return { ok: false, error: 'WhatsApp is not connected (WHAPI_TOKEN is not set)' };
-    const { url, init } = whapiSendRequest(row, WHAPI);
-    return readSendResult('whatsapp', await fetch(url, init));
-  }
+type Result = { ok?: boolean; id?: string | null; error?: string; code?: number | null; settled?: boolean };
+
+async function sendWhatsApp(row: any): Promise<Result> {
+  if (!WHAPI.token) return { ok: false, error: 'WhatsApp is not connected (WHAPI_TOKEN is not set)' };
+  const { url, init } = whapiSendRequest(row, WHAPI);
+  return readSendResult('whatsapp', await fetch(url, init));
+}
+
+// Each part is checked and recorded by the database right before its own Twilio call.
+async function sendSms(row: any): Promise<Result> {
   if (!TWILIO.accountSid || !TWILIO.authToken || !TWILIO.from) return { ok: false, error: 'SMS is not connected (Twilio secrets are not set)' };
-  let first: { ok: boolean; id?: string | null; error?: string; code?: number | null } | null = null;
-  for (const part of splitSms(row.body)) {
-    const { url, init } = twilioSendRequest({ ...row, body: part }, TWILIO);
-    const r = await readSendResult('sms', await fetch(url, init));
-    if (!r.ok) return r;
-    first ??= r;
-  }
-  return first ?? { ok: false, error: 'Empty message' };
+  return sendSmsParts(row, {
+    begin: (part: number, count: number) => db('sms_part_begin', { p_id: row.id, p_part: part, p_count: count }),
+    send: (text: string) => { const { url, init } = twilioSendRequest({ ...row, body: text }, TWILIO); return fetch(url, init); },
+    finish: (part: number, outcome: string, id: string | null, error: string | null) =>
+      db('sms_part_finish', { p_id: row.id, p_part: part, p_outcome: outcome, p_provider_id: id, p_error: error }),
+  });
 }
 
 async function flush() {
   const rows = (await db('outbox_claim', { p_limit: 100 })) || [];
   let sent = 0, failed = 0, blocked = 0;
   for (const row of rows) {
-    // Last check right before the provider call (opt-outs, revocations, SMS switched off).
-    // A non-null reason means the database has already cancelled the message.
-    if (await db('outbox_precheck', { p_id: row.id })) { blocked++; continue; }
-    let r: { ok: boolean; id?: string | null; error?: string; code?: number | null };
-    try { r = await sendOne(row); } catch (e) { r = { ok: false, error: String((e as Error)?.message || e) }; }
-    await db('outbox_finish', { p_id: row.id, p_ok: r.ok, p_provider_id: r.id ?? null, p_error: r.error ?? null });
+    let r: Result;
+    if (row.channel === 'sms') {
+      // An exception here leaves the message 'sending'; if a part was in flight it later goes to review.
+      try { r = await sendSms(row); } catch (e) { console.error(e); failed++; continue; }
+      if (r.settled) { blocked++; continue; }        // stopped before a part, or unclear → needs review
+    } else {
+      // Last check right before the provider call. A non-null reason means it is already cancelled.
+      if (await db('outbox_precheck', { p_id: row.id })) { blocked++; continue; }
+      try { r = await sendWhatsApp(row); } catch (e) { r = { ok: false, error: String((e as Error)?.message || e) }; }
+    }
+    await db('outbox_finish', { p_id: row.id, p_ok: !!r.ok, p_provider_id: r.id ?? null, p_error: r.error ?? null });
     if (row.channel === 'sms' && isTwilioOptOut(r)) await db('sms_carrier_optout', { p_phone: row.to_address });
     r.ok ? sent++ : failed++;
     if (row.channel === 'whatsapp') await sleep(400);   // keep WhatsApp traffic human-paced

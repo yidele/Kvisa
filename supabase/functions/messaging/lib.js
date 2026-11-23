@@ -112,6 +112,46 @@ export async function readSendResult(channel, res) {
   return { ok: true, id: data?.sid || null };
 }
 
+// One Twilio API answer for one SMS part → what happened, without guessing:
+//   accepted  2xx with a message SID (Twilio created the message)
+//   failed    4xx (except 408): Twilio refused it, nothing was created — safe to try again later
+//   unknown   408, 5xx, or a 2xx without a SID — it may or may not have been created
+export async function classifyTwilioResponse(res) {
+  const text = await res.text();
+  let data = null;
+  try { data = JSON.parse(text); } catch { /* not JSON */ }
+  if (res.ok) {
+    return data?.sid ? { outcome: 'accepted', id: data.sid } : { outcome: 'unknown', error: `HTTP ${res.status} without a message id` };
+  }
+  const msg = String(data?.message || text || res.statusText || '').slice(0, 800);
+  if (res.status === 408 || res.status >= 500) return { outcome: 'unknown', error: `HTTP ${res.status}: ${msg}` };
+  return { outcome: 'failed', code: data?.code ?? null, error: `HTTP ${res.status}: ${msg}` };
+}
+
+// Send one queued SMS as its parts, asking the database before EVERY provider call.
+//   deps.begin(partNo, count) → 'send' | 'skip' | 'stop:<reason>'   (records the attempt first)
+//   deps.send(text)           → fetch Response (may throw on network errors)
+//   deps.finish(partNo, outcome, id, error)
+// Returns { settled: true } when the database already holds the final state (stopped / needs review),
+// otherwise { ok, id?, error?, code? } for the caller to record on the whole message.
+export async function sendSmsParts(row, deps) {
+  const parts = splitSms(row.body);
+  let firstId = null;
+  for (let i = 0; i < parts.length; i++) {
+    const go = await deps.begin(i + 1, parts.length);
+    if (go === 'skip') continue;                       // already accepted earlier — never resend
+    if (go !== 'send') return { settled: true, stopped: go };
+    let r;
+    try { r = await classifyTwilioResponse(await deps.send(parts[i])); }
+    catch (e) { r = { outcome: 'unknown', error: 'network error: ' + String(e?.message || e).slice(0, 300) }; }
+    await deps.finish(i + 1, r.outcome, r.id ?? null, r.error ?? null);
+    if (r.outcome === 'accepted') { firstId ??= r.id; continue; }
+    if (r.outcome === 'failed') return { ok: false, error: r.error, code: r.code };
+    return { settled: true, stopped: 'needs_review' };  // unclear: stop here, staff decide
+  }
+  return { ok: true, id: firstId };
+}
+
 // Twilio error 21610: the recipient opted out at the carrier / Twilio level.
 export const isTwilioOptOut = (r) => !r.ok && Number(r.code) === 21610;
 

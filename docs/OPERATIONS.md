@@ -144,6 +144,16 @@ Always:
 - A changed phone number or a deactivated person ends the approval.
 - Incoming texts must carry a valid Twilio signature for the exact webhook URL **and** our AccountSid; the same message
   delivered twice is handled once.
+- **Long texts** go to Twilio as several parts. Every part is checked and recorded right before its own Twilio call
+  (migration `013_sms_parts_and_cap.sql`): a STOP, revocation, switch-off or reached cap stops the remaining parts; a part
+  Twilio already accepted is never sent again on a retry; and if Twilio's answer is unclear (timeout, network error,
+  5xx, or no message id) the message moves to **Check Twilio** on the Messages page. Nothing resends it by itself —
+  staff look at the Twilio log and choose *Delivered*, *Not delivered* (sends only the parts not yet accepted, if still
+  allowed) or *Cancel*.
+- **Daily cap:** “Max texts per person per day” = the most separate text messages (parts) KVISA sends to one number per
+  calendar day in the organization's time zone, all kinds counted (job posts, replies, the enrollment confirmation,
+  HELP). Accepted, in-flight and unclear parts count; parts Twilio definitely refused do not. Checked when queued, when
+  claimed and before every part, one decision at a time per number. HELP is answered at most once per number per day.
 - Message logs are not yet deleted automatically: the retention setting is recorded but a deletion job is still to be
   built (production gate).
 

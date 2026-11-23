@@ -90,6 +90,7 @@
       task_offers: { status: 'accepted', expires_at: null }, order_tasks: { task_type: 'return_collection' }, orders: { order_no: 1001 } }],
     message_outbox: [
       { id: 'mo1', channel: 'whatsapp', to_kind: 'group', to_address: '120363000000000001@g.us', person_id: null, body: 'Jobs available <b>x</b>\n1. Return collection', mentions: [], purpose: 'post', status: 'sent', attempts: 1, error: null, created_at: iso(-2) },
+      { id: 'mo3', channel: 'sms', to_kind: 'person', to_address: '17185550141', person_id: people[0].id, body: 'KVISA: synthetic long text', mentions: [], purpose: 'post', status: 'needs_review', attempts: 1, error: 'Unclear whether part 2 reached Twilio (network error: synthetic). Check the Twilio log before resending.', created_at: iso(-1) },
       { id: 'mo2', channel: 'whatsapp', to_kind: 'group', to_address: '120363000000000001@g.us', person_id: people[0].id, body: '1 covered @17185550101', mentions: ['17185550101'], purpose: 'covered', status: 'failed', attempts: 3, error: 'HTTP 401: bad token', created_at: iso(-1.5) },
     ],
     message_inbox: [
@@ -130,7 +131,7 @@
     job_post_preview: { body: 'Jobs available — reply privately with the number you can take:\n\n1. Return collection — Maple Avenue → Other St — 3 bags\n\nReply privately with the job number (e.g. 2). Reply DONE when you finish.', items: [] },
     post_jobs: { post_id: 'jp2', post_no: 2, jobs: 1, first_no: 1, last_no: 1, whatsapp: true, sms: 0, body: 'x' },
     outbox_retry: null, outbox_cancel: null,
-    sms_approve: 'se-new', sms_revoke: null, sms_add_disclosure: null,
+    sms_approve: 'se-new', sms_revoke: null, sms_add_disclosure: null, outbox_resolve: null,
     sms_issue_code: { code: '482913', expires_at: iso(72), phone_last4: '0143', program_number: null, disclosure_version: 'test-v1',
       disclosure: 'SYNTHETIC TEST DISCLOSURE <b>not real</b>' },
   };

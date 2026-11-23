@@ -138,6 +138,15 @@ def main():
         page.click('[data-retry=mo2]'); page.wait_for_timeout(300)
         check('failed message can be sent again', any(w.get('rpc') == 'outbox_retry' and w['args'] == {'p_id': 'mo2'} for w in page.evaluate('window.__writes')))
 
+        # unclear SMS: staff resolve after checking Twilio (no plain resend)
+        check('an unclear text is shown as "Check Twilio" with resolve buttons, not "Send again"',
+              'Check Twilio' in page.inner_text('main') and page.query_selector('[data-retry=mo3]') is None and page.query_selector('[data-resolve=delivered][data-id=mo3]'))
+        page.dialog_policy['mode'] = 'accept'
+        page.click('[data-resolve=delivered][data-id=mo3]'); page.wait_for_timeout(300)
+        page.dialog_policy.update(mode='error', seen=[])
+        res = [w for w in page.evaluate('window.__writes') if w.get('rpc') == 'outbox_resolve']
+        check('resolving asks first and records the staff decision', res and res[-1]['args'] == {'p_id': 'mo3', 'p_decision': 'delivered'}, res)
+
         # settings: WhatsApp group picker
         page.goto(f'{base}/index.html#/settings'); wait_page(page)
         page.click('#messaging summary')

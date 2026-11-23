@@ -7,8 +7,8 @@ import { postJobsModal } from '../components/postJobs.js';
 
 const CHANNEL = { whatsapp: 'WhatsApp', sms: 'Text' };
 const PURPOSE = { post: 'Job post', covered: 'Covered', reply: 'Reply', sms_confirm: 'Enrollment confirmation', help: 'HELP reply' };
-const SEND_TONE = { pending: 'neutral', sending: 'progress', sent: 'done', failed: 'danger', cancelled: 'muted' };
-const SEND_LABEL = { pending: 'Waiting', sending: 'Sending', sent: 'Sent', failed: 'Failed', cancelled: 'Cancelled' };
+const SEND_TONE = { pending: 'neutral', sending: 'progress', sent: 'done', failed: 'danger', cancelled: 'muted', needs_review: 'warn' };
+const SEND_LABEL = { pending: 'Waiting', sending: 'Sending', sent: 'Sent', failed: 'Failed', cancelled: 'Cancelled', needs_review: 'Check Twilio' };
 const OUTCOME = {
   take: ['Took a job', 'done'], done: ['Marked done', 'done'], ignored: ['Chat (no auto-reply)', 'neutral'],
   unknown_sender: ['Unknown number', 'warn'], error: ['Error', 'danger'],
@@ -88,7 +88,11 @@ export async function render(root) {
                 ${m.error ? html`<br><small class="warn-text">${m.error}</small>` : ''}</td>
               <td class="actions">
                 ${['failed', 'cancelled'].includes(m.status) ? html`<button class="btn btn-sm" data-retry="${m.id}">Send again</button>` : ''}
-                ${['pending', 'failed'].includes(m.status) ? html`<button class="btn btn-sm btn-danger-ghost" data-cancel="${m.id}">Cancel</button>` : ''}</td>
+                ${['pending', 'failed'].includes(m.status) ? html`<button class="btn btn-sm btn-danger-ghost" data-cancel="${m.id}">Cancel</button>` : ''}
+                ${m.status === 'needs_review' ? html`<span class="actions-row">
+                  <button class="btn btn-sm" data-resolve="delivered" data-id="${m.id}" title="Twilio's log shows it went out">Delivered</button>
+                  <button class="btn btn-sm" data-resolve="not_delivered" data-id="${m.id}" title="Twilio's log shows it did not go out — send the rest">Not delivered</button>
+                  <button class="btn btn-sm btn-danger-ghost" data-resolve="cancel" data-id="${m.id}">Cancel</button></span>` : ''}</td>
             </tr>`)}</tbody></table></div>` : emptyState('Nothing sent yet')}
         </section>`);
     } catch (err) { setHtml(box, errorState(err)); }
@@ -106,6 +110,16 @@ export async function render(root) {
   on(root, 'click', '[data-action=reload]', () => load());
   on(root, 'click', '[data-retry]', async (e, el) => {
     try { await rpc('outbox_retry', { p_id: el.dataset.retry }); await sendNow(true); } catch (err) { toast(err.message, 'error'); }
+  });
+  on(root, 'click', '[data-resolve]', async (e, el) => {
+    const msg = { delivered: 'Mark as delivered? Nothing more is sent for the parts that are unclear.',
+      not_delivered: 'Only choose this after checking Twilio’s log shows it was NOT sent. The parts not yet accepted will be sent.',
+      cancel: 'Send nothing more for this message?' }[el.dataset.resolve];
+    if (!confirm(msg)) return;
+    try {
+      await rpc('outbox_resolve', { p_id: el.dataset.id, p_decision: el.dataset.resolve });
+      if (el.dataset.resolve === 'not_delivered') await sendNow(true); else { toast('Updated.'); load(); }
+    } catch (err) { toast(err.message, 'error'); }
   });
   on(root, 'click', '[data-cancel]', async (e, el) => {
     try { await rpc('outbox_cancel', { p_id: el.dataset.cancel }); toast('Cancelled.'); load(); } catch (err) { toast(err.message, 'error'); }
