@@ -28,11 +28,10 @@ a:hover { text-decoration: underline; }
 h1, h2, h3 { line-height: 1.25; margin: 0 0 .5rem; }
 h1 { font-size: 1.45rem; } h2 { font-size: 1.1rem; } h3 { font-size: 1rem; }
 p { margin: .25rem 0 .75rem; }
-/* the organization's logo (dark navy artwork): sits on a white chip in dark mode so it stays readable */
-.brand-img { display: block; }
-.brand-mark { height: 30px; width: auto; }
-.brand-logo { width: 220px; max-width: 70%; height: auto; margin: 0 auto; }
-@media (prefers-color-scheme: dark) { .brand-img { background: #fff; border-radius: 10px; padding: 4px 8px; } }
+/* the organization's logo (see-through PNGs: navy, and white for dark mode) */
+.brand-pic { display: contents; }
+.brand-mark { height: 30px; width: auto; display: block; }
+.brand-logo { width: 200px; max-width: 70%; height: auto; display: block; margin: 0 auto; }
 code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
 small { font-size: .85em; }
 .muted { color: var(--muted); }
@@ -386,30 +385,42 @@ body.modal-open { overflow: hidden; }
 .route-preview .route, .offer-card .route { font-size: 1.1rem; margin: .25rem 0; }
 .offer-card { border-left: 4px solid var(--wait); }
 
-/* walk-up tablet (kiosk) */
-body.kiosk-mode { overscroll-behavior: none; }
-.kiosk { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; font-size: 18px;
-  background: radial-gradient(circle at 15% 0%, var(--accent-soft), transparent 45%), radial-gradient(circle at 100% 100%, var(--wait-soft), transparent 40%), var(--bg); }
+/* walk-up tablet (kiosk): always light, in the logo's navy, whatever the device's color mode */
+body.kiosk-mode { overscroll-behavior: none; background: #f3f4fa; }
+.kiosk {
+  --brand: #25265e; --brand-2: #34368a;
+  --bg: #f3f4fa; --surface: #ffffff; --surface-2: #f7f8fc; --border: #dfe1ec; --border-strong: #c4c7d8;
+  --text: #191a33; --text-2: #474a66; --muted: #6c6f87;
+  --accent: #2e3192; --accent-ink: #ffffff; --accent-soft: #e9e9f8;
+  --ok: #1d7a46; --ok-soft: #e3f4ea; --warn: #9a5b00; --warn-soft: #fff3dc; --danger: #b3261e; --danger-soft: #fde7e6;
+  --info: #2e3192; --info-soft: #e9e9f8; --wait: #0f6f7a; --wait-soft: #e1f3f4;
+  --shadow: 0 1px 2px rgba(25, 26, 51, .06), 0 2px 6px rgba(25, 26, 51, .08);
+  color-scheme: light; color: var(--text);
+  min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; font-size: 18px;
+  background: radial-gradient(circle at 12% 0%, #e6e7f7, transparent 45%), radial-gradient(circle at 100% 100%, #e4f2f5, transparent 40%), var(--bg); }
+.kiosk input { background: #fff; color: var(--text); border-color: var(--border-strong); }
 .kiosk-screen { flex: 1; display: flex; flex-direction: column; }
-.kiosk-head { display: flex; align-items: center; gap: .75rem; padding: .75rem 1.25rem; background: var(--surface); border-bottom: 1px solid var(--border); }
-.kiosk-logo { border: 0; background: none; padding: 0; height: 44px; cursor: default; -webkit-tap-highlight-color: transparent; }
-.kiosk-logo img { height: 44px; width: auto; display: block; }
-.kiosk-org { font-weight: 700; font-size: 1.15rem; flex: 1; }
-.kiosk-back { min-height: 48px; font-size: 1.05rem; padding: .4rem 1.1rem; }
+.kiosk-head { display: flex; align-items: center; gap: .9rem; padding: .7rem 1.25rem; background: var(--brand); color: #fff; }
+.kiosk-logo { border: 0; background: none; padding: 0; cursor: default; -webkit-tap-highlight-color: transparent; }
+.kiosk-logo img { height: 40px; width: auto; display: block; }
+.kiosk-org { font-weight: 700; font-size: 1.1rem; flex: 1; opacity: .9; }
+.kiosk-back { min-height: 48px; font-size: 1.05rem; padding: .4rem 1.1rem; background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
+.kiosk-back:hover { background: rgba(255,255,255,.12); }
 .kiosk-body { flex: 1; display: grid; place-items: center; padding: 1.25rem 16px 2rem; }
 .kiosk-card { width: 100%; max-width: 720px; background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 1.75rem; box-shadow: var(--shadow); }
-.kiosk h1 { font-size: 2rem; }
+.kiosk h1 { font-size: 2rem; color: var(--brand); }
 .kiosk-sub { color: var(--text-2); font-size: 1.1rem; }
 
-/* welcome */
+/* welcome: the logo on its own navy */
+.kiosk[data-screen=welcome] { background: radial-gradient(circle at 30% 15%, var(--brand-2), var(--brand) 55%, #1a1b45); color: #fff; }
 .kiosk-welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem 16px; gap: .5rem; }
 .kiosk-brand { border: 0; background: none; padding: 0; cursor: default; -webkit-tap-highlight-color: transparent; }
-.kiosk-mark { width: 340px; max-width: 80vw; height: auto; display: block; }
-.kiosk-welcome-name { font-size: 2.6rem; margin: .75rem 0 0; }
-.kiosk-taglines { display: flex; flex-direction: column; gap: .15rem; color: var(--text-2); font-size: 1.15rem; margin-bottom: 1.75rem; }
+.kiosk-mark { width: 380px; max-width: 78vw; height: auto; display: block; filter: drop-shadow(0 12px 30px rgba(0, 0, 0, .25)); }
+.kiosk .kiosk-welcome-name { font-size: 1.6rem; margin: 1.25rem 0 0; color: rgba(255,255,255,.92); font-weight: 600; }
+.kiosk-taglines { display: flex; flex-direction: column; gap: .15rem; color: rgba(255,255,255,.75); font-size: 1.15rem; margin-bottom: 2rem; }
 .kiosk-langs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; width: 100%; max-width: 720px; }
-.kiosk-lang-btn { min-height: 110px; border-radius: 18px; border: 2px solid var(--border-strong); background: var(--surface); color: var(--text);
-  font: 700 1.9rem/1.2 var(--font); cursor: pointer; box-shadow: var(--shadow); }
+.kiosk-lang-btn { min-height: 110px; border-radius: 18px; border: 0; background: #fff; color: var(--brand);
+  font: 700 1.9rem/1.2 var(--font); cursor: pointer; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
 
 /* how it works */
 .kiosk-how { list-style: none; padding: 0; margin: 1rem 0 1.5rem; display: flex; flex-direction: column; gap: .9rem; }
@@ -421,7 +432,8 @@ body.kiosk-mode { overscroll-behavior: none; }
 .kiosk-idlink small { color: var(--text-2); font-size: 1rem; }
 .kiosk-ic { width: 72px; height: 72px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .kiosk-ic.sm { width: 48px; height: 48px; flex: none; color: var(--accent); }
-.kiosk-lang-btn:active, .kiosk-idlink:active { transform: scale(.98); border-color: var(--accent); }
+.kiosk-lang-btn:active, .kiosk-idlink:active { transform: scale(.98); }
+.kiosk-idlink:active { border-color: var(--accent); }
 
 /* forms */
 .kiosk-names { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1rem; }

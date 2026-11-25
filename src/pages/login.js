@@ -3,7 +3,7 @@ import { sb } from '../lib/api.js';
 import { html, setHtml, $, on, formValues } from '../lib/dom.js';
 import { friendlyError } from '../lib/format.js';
 import { APP_NAME } from '../config.js';
-import { LOGO } from '../lib/app.js';
+import { brandLogo } from '../lib/app.js';
 
 const redirectUrl = () => location.origin + location.pathname;
 
@@ -13,7 +13,7 @@ export function render(container) {
     setHtml(container, html`
       <div class="auth-wrap">
         <div class="card auth-card">
-          <div class="brand brand-lg"><img class="brand-img brand-logo" src="${LOGO}" alt="${APP_NAME}"></div>
+          <div class="brand brand-lg">${brandLogo('brand-logo', APP_NAME)}</div>
           <div class="tabs" role="tablist">
             <button role="tab" class="tab ${mode === 'signin' ? 'active' : ''}" data-mode="signin" aria-selected="${mode === 'signin'}">Sign in</button>
             <button role="tab" class="tab ${mode === 'signup' ? 'active' : ''}" data-mode="signup" aria-selected="${mode === 'signup'}">Create account</button>

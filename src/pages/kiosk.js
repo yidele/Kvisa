@@ -7,7 +7,7 @@ import { html, raw, setHtml, $, on } from '../lib/dom.js';
 import { orderNo, fmtDate, friendlyError } from '../lib/format.js';
 import { TEXT, LANGS, LABEL_SIZES, checkDropOff, checkLookup, labelPages } from '../lib/kiosk.js';
 import { APP_NAME } from '../config.js';
-import { LOGO, LOGO_MARK } from '../lib/app.js';
+import { LOGO_WHITE } from '../lib/app.js';
 
 // Seconds without a touch before a screen goes back to the welcome screen.
 const IDLE = { info: 60, form: 120, preview: 120, lookup: 90, status: 90 };
@@ -53,7 +53,7 @@ export function render(container) {
 
   // ---------------- screens ----------------
   const head = (backTo) => html`<header class="kiosk-head">
-    <button type="button" class="kiosk-logo" data-k="logo" aria-label="${org}"><img class="brand-img" src="${LOGO_MARK}" alt=""></button>
+    <button type="button" class="kiosk-logo" data-k="logo" aria-label="${org}"><img src="${LOGO_WHITE}" alt=""></button>
     <span class="kiosk-org">${org}</span>
     ${backTo ? html`<button type="button" class="btn kiosk-back" data-go="${backTo}">${dir() === 'rtl' ? '→' : '←'} ${t().back}</button>` : ''}
   </header>`;
@@ -72,7 +72,7 @@ export function render(container) {
 
   const screens = {
     welcome: () => html`<div class="kiosk-welcome">
-      <button type="button" class="kiosk-brand" data-k="logo" aria-label="${org}"><img class="kiosk-mark brand-img" src="${LOGO}" alt=""></button>
+      <button type="button" class="kiosk-brand" data-k="logo" aria-label="${org}"><img class="kiosk-mark" src="${LOGO_WHITE}" alt=""></button>
       <h1 class="kiosk-welcome-name">${org}</h1>
       <p class="kiosk-taglines"><span lang="he" dir="rtl">${TEXT.he.tagline}</span><span lang="en" dir="ltr">${TEXT.en.tagline}</span><span lang="yi" dir="rtl">${TEXT.yi.tagline}</span></p>
       <div class="kiosk-langs">${Object.entries(LANGS).map(([k, l]) =>

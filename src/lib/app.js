@@ -1,9 +1,14 @@
 // Shared app-level state and icons (kept separate to avoid import cycles).
-import { raw } from './dom.js';
+import { raw, html } from './dom.js';
 
-// The organization's logo (assets/ at the site root); resolved from this file so it works from any page.
-export const LOGO = new URL('../../assets/logo.png', import.meta.url).href;
-export const LOGO_MARK = new URL('../../assets/logo-mark.png', import.meta.url).href;
+// The organization's logo (assets/ at the site root), navy and white versions with see-through backgrounds;
+// resolved from this file so it works from any page.
+export const LOGO = new URL('../../assets/logo-mark.png', import.meta.url).href;
+export const LOGO_WHITE = new URL('../../assets/logo-mark-white.png', import.meta.url).href;
+
+// Navy logo on light screens, white logo when the device is in dark mode.
+export const brandLogo = (cls, alt = '') => html`<picture class="brand-pic">
+  <source srcset="${LOGO_WHITE}" media="(prefers-color-scheme: dark)"><img class="${cls}" src="${LOGO}" alt="${alt}"></picture>`;
 
 export const app = {
   dirty: false,                 // set by full-page forms with unsaved changes
