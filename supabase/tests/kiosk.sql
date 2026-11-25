@@ -7,7 +7,7 @@ language plpgsql set search_path = public as $$
 declare
   res jsonb := '[]'::jsonb;
   u_k uuid := gen_random_uuid(); u_disp uuid := gen_random_uuid(); u_drv uuid := gen_random_uuid();
-  p_drv uuid; v_json jsonb; v_json2 jsonb; v_ok boolean; v_client uuid; v_key uuid := gen_random_uuid();
+  p_drv uuid; v_json jsonb; v_json2 jsonb; v_ok boolean; v_client uuid; v_key uuid := gen_random_uuid(); v_no bigint;
 begin
   begin
     grant usage on schema kvisa_tests to authenticated;
@@ -81,27 +81,68 @@ begin
     begin perform public.kiosk_submit('', '', 'Levi', '0521234567', '0521234567', 1, gen_random_uuid()); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%first name%'; end;
     begin perform public.kiosk_submit('Abe', '', '', '0521234567', '0521234567', 1, gen_random_uuid()); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%last name%'; end;
     begin perform public.kiosk_submit('Abe', '', 'Cohen', '123', '0521234567', 1, gen_random_uuid()); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%valid phone%'; end;
-    begin perform public.kiosk_submit('Abe', '', 'Cohen', '0521234567', '12', 1, gen_random_uuid()); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%Israel%'; end;
     begin perform public.kiosk_submit('Abe', '', 'Cohen', '0521234567', '0521234567', 0, gen_random_uuid()); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%from 1 to 10%'; end;
     begin perform public.kiosk_submit('Abe', '', 'Cohen', '0521234567', '0521234567', 11, gen_random_uuid()); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%from 1 to 10%'; end;
-    res := res || kvisa_tests.t('K5 Names, both phones and bag count are validated (max bags from Settings)', v_ok);
+    res := res || kvisa_tests.t('K5 Names, phone and bag count are validated (max bags from Settings)', v_ok);
 
-    -- ---- track my laundry ----
+    -- ---- the phone in Israel is optional and accepted in any format ----
     perform kvisa_tests.act_as(u_k);
-    v_json2 := public.kiosk_track('+972-52-123-4567', 'moshe');
-    res := res || kvisa_tests.t('K10 Tracking by Israeli number + first name lists his orders, newest first, without addresses',
-      jsonb_array_length(v_json2) = 4 and (v_json2->0->>'status') = 'requested'
-      and not (v_json2::text like '%Guest House%') and not (v_json2::text like '%Levi%'), v_json2::text);
-    v_json2 := public.kiosk_track('347-555-0199', 'Moshe');
-    res := res || kvisa_tests.t('K10 Tracking by the American number works too', jsonb_array_length(v_json2) = 4);
-    v_json2 := public.kiosk_track('052-123-4567', 'David');
-    res := res || kvisa_tests.t('K10 The wrong name shows nothing', jsonb_array_length(v_json2) = 0);
-    v_json2 := public.kiosk_track('052-999-9999', 'Moshe');
-    res := res || kvisa_tests.t('K10 An unknown number shows nothing', jsonb_array_length(v_json2) = 0);
+    v_json2 := public.kiosk_submit('Abe', '', 'Cohen', '053-111-2222', '12', 1, gen_random_uuid());
+    v_ok := not (v_json2->>'returning')::boolean;
+    v_json2 := public.kiosk_submit('Sara', '', 'Klein', '053-222-3333', '', 1, gen_random_uuid());
+    v_ok := v_ok and not (v_json2->>'returning')::boolean;
+    v_json2 := public.kiosk_submit('Sara', '', 'Klein', '053-222-3333', '  ', 2, gen_random_uuid());
+    perform kvisa_tests.act_as(null);
+    res := res || kvisa_tests.t('K11 Any Israeli number (or none) is accepted; an unmatched number opens a new client; a blank one keeps the saved one',
+      v_ok and (v_json2->>'returning')::boolean
+      and (select israel_phone is null from public.clients where phone = '053-222-3333')
+      and (select israel_phone = '12' from public.clients where phone = '053-111-2222'), v_json2::text);
+
+    -- ---- "I have an ID number": look up and cancel ----
+    perform kvisa_tests.act_as(u_k);
+    v_json2 := public.kiosk_lookup((v_json->>'order_no')::bigint, '0101');
+    res := res || kvisa_tests.t('K12 ID + last 4 digits of the phone used shows the drop-off as waiting, cancellable, without addresses',
+      v_json2->>'state' = 'waiting' and (v_json2->>'can_cancel')::boolean and v_json2->>'first_name' = 'Moshe'
+      and (v_json2->>'bags')::int = 3 and not (v_json2::text like '%Guest House%') and not (v_json2::text like '%Levi%'), v_json2::text);
+    v_ok := (public.kiosk_lookup((v_json->>'order_no')::bigint, '4567')->>'state') = 'waiting'
+        and (public.kiosk_lookup((v_json->>'order_no')::bigint, '0199')->>'state') = 'waiting';
+    res := res || kvisa_tests.t('K12 The last 4 digits of any of his numbers work', v_ok);
+    v_ok := true;
+    begin perform public.kiosk_lookup((v_json->>'order_no')::bigint, '9999'); v_ok := false; exception when others then v_ok := sqlerrm like '%KVISA_NOT_FOUND%'; end;
+    begin perform public.kiosk_lookup(999999999, '0101'); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%KVISA_NOT_FOUND%'; end;
+    begin perform public.kiosk_lookup((v_json->>'order_no')::bigint, '01'); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%KVISA_NOT_FOUND%'; end;
+    res := res || kvisa_tests.t('K12 A wrong ID or wrong digits find nothing (same message for both)', v_ok);
+
+    v_json2 := public.kiosk_cancel((v_json->>'order_no')::bigint, '4567');
+    perform kvisa_tests.act_as(null);
+    res := res || kvisa_tests.t('K13 Cancelling while waiting cancels the order and all its stages, and tells the office',
+      v_json2->>'state' = 'cancelled'
+      and (select status = 'cancelled' and cancel_reason like '%tablet%' from public.orders where order_no = (v_json->>'order_no')::bigint)
+      and not exists (select 1 from public.order_tasks t join public.orders o on o.id = t.order_id
+                      where o.order_no = (v_json->>'order_no')::bigint and t.status <> 'cancelled')
+      and exists (select 1 from public.notifications where user_id = u_disp and title like 'Tablet request cancelled%'), v_json2::text);
+    perform kvisa_tests.act_as(u_k);
+    v_ok := (public.kiosk_lookup((v_json->>'order_no')::bigint, '0101')->>'state') = 'cancelled';
+    begin perform public.kiosk_cancel((v_json->>'order_no')::bigint, '0101'); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%can no longer be cancelled%'; end;
+    res := res || kvisa_tests.t('K13 A cancelled drop-off shows as cancelled and cannot be cancelled twice', v_ok);
+
+    -- once the driver has started the pickup it can no longer be cancelled from the tablet
+    perform kvisa_tests.act_as(null);
+    select o.order_no into v_no from public.orders o where o.client_id = v_client and o.status = 'requested' order by o.created_at limit 1;
+    perform set_config('kvisa.rpc', 'on', true);
+    update public.order_tasks set status = 'in_progress', started_at = now()
+     where task_type = 'pickup' and order_id = (select id from public.orders where order_no = v_no);
+    perform kvisa_tests.act_as(u_k);
+    v_json2 := public.kiosk_lookup(v_no, '0199');
+    v_ok := v_json2->>'state' = 'picked_up' and not (v_json2->>'can_cancel')::boolean;
+    begin perform public.kiosk_cancel(v_no, '0199'); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%already picked up%'; end;
+    res := res || kvisa_tests.t('K14 After pickup has started it shows as picked up and cannot be cancelled', v_ok, v_json2::text);
+
     perform kvisa_tests.act_as(u_drv);
     v_ok := false;
-    begin perform public.kiosk_track('052-123-4567', 'Moshe'); exception when others then v_ok := sqlerrm like '%KVISA_FORBIDDEN%'; end;
-    res := res || kvisa_tests.t('K10 Only the tablet (or staff) can track', v_ok);
+    begin perform public.kiosk_lookup(v_no, '0199'); exception when others then v_ok := sqlerrm like '%KVISA_FORBIDDEN%'; end;
+    begin perform public.kiosk_cancel(v_no, '0199'); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%KVISA_FORBIDDEN%'; end;
+    res := res || kvisa_tests.t('K14 Only the tablet (or staff) can look up or cancel', v_ok);
 
     -- ---- the tablet login can do nothing else ----
     perform kvisa_tests.act_as(u_k);
@@ -128,9 +169,10 @@ begin
     perform set_config('role', 'anon', true);
     v_ok := false;
     begin perform public.kiosk_submit('Anon', '', 'Test', '0529999999', '0529999999', 1, gen_random_uuid()); exception when others then v_ok := true; end;
-    begin perform public.kiosk_track('0529999999', 'Anon'); v_ok := false; exception when others then v_ok := v_ok; end;
+    begin perform public.kiosk_lookup(1001, '9999'); v_ok := false; exception when others then v_ok := v_ok; end;
+    begin perform public.kiosk_cancel(1001, '9999'); v_ok := false; exception when others then v_ok := v_ok; end;
     perform set_config('role', 'postgres', true);
-    res := res || kvisa_tests.t('K7 Signed-out visitors cannot submit or track', v_ok);
+    res := res || kvisa_tests.t('K7 Signed-out visitors cannot submit, look up or cancel', v_ok);
     perform kvisa_tests.act_as(u_disp);
     v_json2 := public.kiosk_submit('Office', '', 'Test', '0528888888', '0528888888', 1, gen_random_uuid());
     res := res || kvisa_tests.t('K7 Staff can use the tablet screen (for testing)', (v_json2->>'order_no') is not null);

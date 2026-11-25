@@ -105,8 +105,9 @@
     dispatch_preview: { from_street: 'Maple Avenue', to_street: 'Other St', blocked: null, assignee_id: null },
     dispatch_task: 'off3', respond_offer: { accepted: true, task_id: 'x' }, cancel_offer: null,
     kiosk_submit: { order_no: 1015, name: 'Moshe <b>Levi</b>', phone: '718-555-0101', israel_phone: '052-123-4567', bags: 3, created_at: iso(0), returning: true, repeat: false },
-    kiosk_track: [{ order_no: 1016, bags: 2, status: 'awaiting_washing', created_at: iso(-20), completed_at: null },
-      { order_no: 1009, bags: 4, status: 'completed', created_at: iso(-200), completed_at: iso(-30) }],
+    kiosk_lookup: (a) => (a.p_last4 === '0000' ? { error: { message: 'KVISA_NOT_FOUND: no drop-off matches this ID and phone number' } }
+      : { data: { order_no: a.p_order_no, first_name: 'Moshe', bags: 2, created_at: iso(-20), state: a.p_order_no === 1009 ? 'picked_up' : 'waiting', can_cancel: a.p_order_no !== 1009 } }),
+    kiosk_cancel: { order_no: 1016, state: 'cancelled' },
   };
   window.__writes = [];
   function builder(table) {
@@ -141,7 +142,11 @@
     createClient() {
       return {
         from: (t) => builder(t),
-        rpc: (name, args) => { window.__writes.push({ rpc: name, args }); return Promise.resolve({ data: rpcs[name] ?? null, error: null }); },
+        rpc: (name, args) => {
+          window.__writes.push({ rpc: name, args });
+          const r = typeof rpcs[name] === 'function' ? rpcs[name](args) : { data: rpcs[name] ?? null };
+          return Promise.resolve({ data: r.data ?? null, error: r.error ?? null });
+        },
         auth: {
           getSession: () => Promise.resolve({ data: { session } }),
           onAuthStateChange: (cb) => { setTimeout(() => cb(localStorage.getItem('fakeLoggedOut') ? 'INITIAL_SESSION' : 'INITIAL_SESSION', localStorage.getItem('fakeLoggedOut') ? null : session), 0); return { data: { subscription: { unsubscribe() {} } } }; },

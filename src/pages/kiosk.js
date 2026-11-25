@@ -1,17 +1,16 @@
 // Walk-up tablet screens:
-//   welcome (language) → menu → drop-off form → labels (print, stick on bags) → summary
-//                              → "Where is my laundry?" (phone + first name) → live status
+//   welcome (language) → how it works → details → label preview → (confirm & print) → completed
+//                      → "I have an ID number" (ID + last 4 phone digits) → waiting / picked up, cancel while waiting
 // Full screen, no navigation to the rest of Kvisa, returns to the welcome screen when left alone.
 import { sb, rpc, state, settings } from '../lib/api.js';
 import { html, raw, setHtml, $, on } from '../lib/dom.js';
 import { orderNo, fmtDate, friendlyError } from '../lib/format.js';
-import { TEXT, LANGS, LABEL_SIZES, STAGES, checkDropOff, checkTrack, stageOf, labelPages } from '../lib/kiosk.js';
+import { TEXT, LANGS, LABEL_SIZES, checkDropOff, checkLookup, labelPages } from '../lib/kiosk.js';
 import { APP_NAME } from '../config.js';
 
 // Seconds without a touch before a screen goes back to the welcome screen.
-const IDLE = { menu: 60, form: 120, labels: 300, track: 120 };
-const SUMMARY_SECONDS = 45;   // the summary counts down visibly, then starts over
-const TRACK_REFRESH = 20;     // "Where is my laundry?" re-checks the status this often
+const IDLE = { info: 60, form: 120, preview: 120, lookup: 90, status: 90 };
+const DONE_SECONDS = 60;      // the completed screen counts down visibly, then starts over
 
 const newKey = () => (crypto.randomUUID ? crypto.randomUUID()
   : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
@@ -24,8 +23,7 @@ const BRAND = raw(`<svg class="kiosk-mark" viewBox="0 0 120 120" aria-hidden="tr
   <text x="60" y="80" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="50" fill="#ffffff">K</text>
   <circle cx="92" cy="26" r="7" fill="#ffffff" opacity=".8"/><circle cx="102" cy="42" r="4" fill="#ffffff" opacity=".6"/>
   <circle cx="24" cy="98" r="5" fill="#ffffff" opacity=".5"/></svg>`);
-const ICON_BAG = raw('<svg class="kiosk-ic" viewBox="0 0 48 48" aria-hidden="true"><path d="M14 16h20l4 26H10z"/><path d="M18 16v-3a6 6 0 0112 0v3"/><path d="M24 24v10M19 29h10"/></svg>');
-const ICON_FIND = raw('<svg class="kiosk-ic" viewBox="0 0 48 48" aria-hidden="true"><circle cx="21" cy="21" r="11"/><path d="M29 29l10 10"/><path d="M16 21l4 4 7-8"/></svg>');
+const ICON_ID = raw('<svg class="kiosk-ic sm" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="11" width="36" height="26" rx="4"/><path d="M13 20h10M13 27h16M33 20h2"/></svg>');
 
 // Leaving the screen (5 taps on the logo) asks for the signed-in account's password, then signs out.
 export function render(container) {
@@ -39,13 +37,13 @@ export function render(container) {
   let errors = {};
   let banner = '';
   let busy = false;
-  let result = null;
+  let result = null;        // the drop-off just made
   let requestKey = newKey();
-  let trackForm = { phone: '', first: '' };
-  let trackResult = null;
+  let lookupForm = { id: '', last4: '' };
+  let found = null;         // the drop-off found by ID
+  let confirmingCancel = false;
   let lastActivity = Date.now();
-  let summaryLeft = 0;
-  let sinceRefresh = 0;
+  let doneLeft = 0;
   let taps = [];
   const t = () => TEXT[lang];
   const dir = () => LANGS[lang].dir;
@@ -69,6 +67,14 @@ export function render(container) {
   const inv = (k) => (errors[k] ? raw(`aria-invalid="true" aria-describedby="err-${k}"`) : '');
   const bannerBox = () => (banner ? html`<div class="notice notice-error" role="alert">${banner}</div>` : '');
   const when = (v) => fmtDate(v, s.time_zone);
+  const fullName = () => [form.first, form.middle, form.last].map((x) => x.trim()).filter(Boolean).join(' ');
+
+  const miniBag = (no, name, p) => html`<div class="k-mini">
+    <span class="k-mini-no">${no}</span><span class="k-mini-name" dir="auto">${name}</span>
+    <span class="k-mini-foot">Bag ${p.index} of ${p.of}</span></div>`;
+  const miniReceipt = (id, name, bags) => html`<div class="k-mini receipt">
+    <span class="k-mini-tag">${t().receipt}</span><span class="k-mini-no">ID ${id}</span>
+    <span class="k-mini-name" dir="auto">${name}</span><span class="k-mini-foot">${bags} ${t().bagsWord}</span></div>`;
 
   const screens = {
     welcome: () => html`<div class="kiosk-welcome">
@@ -79,14 +85,14 @@ export function render(container) {
         html`<button type="button" class="kiosk-lang-btn" data-lang="${k}" lang="${k}" dir="${l.dir}">${l.name}</button>`)}</div>
     </div>`,
 
-    menu: () => html`${head('welcome')}<div class="kiosk-body"><section class="kiosk-menu">
-      <h1>${t().menuTitle}</h1>
-      <div class="kiosk-choices">
-        <button type="button" class="kiosk-choice primary" data-go="form">${ICON_BAG}<strong>${t().newCall}</strong><span>${t().newCallSub}</span></button>
-        <button type="button" class="kiosk-choice" data-go="track">${ICON_FIND}<strong>${t().track}</strong><span>${t().trackSub}</span></button>
-      </div></section></div>`,
+    info: () => html`${head('welcome')}<div class="kiosk-body"><section class="kiosk-card kiosk-info-page">
+      <h1>${t().infoTitle}</h1>
+      <ol class="kiosk-how">${t().infoSteps.map((x, i) => html`<li><span class="kiosk-how-no" aria-hidden="true">${i + 1}</span><span>${x}</span></li>`)}</ol>
+      <button type="button" class="btn btn-primary btn-lg btn-block kiosk-submit" data-go="form">${t().continue}</button>
+      <button type="button" class="kiosk-idlink" data-go="lookup">${ICON_ID}<span><strong>${t().haveId}</strong><small>${t().haveIdSub}</small></span></button>
+    </section></div>`,
 
-    form: () => html`${head('menu')}<div class="kiosk-body"><form class="kiosk-card" data-form="dropoff" novalidate autocomplete="off">
+    form: () => html`${head('info')}<div class="kiosk-body"><form class="kiosk-card" data-form="dropoff" novalidate autocomplete="off">
       <h1>${t().formTitle}</h1>
       ${bannerBox()}
       <div class="kiosk-names">
@@ -101,7 +107,7 @@ export function render(container) {
         <label class="field kiosk-field"><span>${t().phoneHere}</span>
           <input name="phone" type="tel" inputmode="tel" value="${form.phone}" maxlength="25" dir="ltr" ${inv('phone')}>${err('phone')}</label>
         <label class="field kiosk-field"><span>${t().phoneIsrael}</span>
-          <input name="israel" type="tel" inputmode="tel" value="${form.israel}" maxlength="25" dir="ltr" ${inv('israel')}>${err('israel')}</label>
+          <input name="israel" type="tel" inputmode="tel" value="${form.israel}" maxlength="30" dir="ltr"></label>
       </div>
       <div class="field kiosk-field"><span id="bags-label">${t().bags}</span>
         <div class="kiosk-stepper" role="group" aria-labelledby="bags-label">
@@ -109,74 +115,77 @@ export function render(container) {
           <output class="kiosk-bags" aria-live="polite">${form.bags}</output>
           <button type="button" class="btn" data-k="more" aria-label="${t().more}">+</button>
         </div>${err('bags')}</div>
-      <button type="submit" class="btn btn-primary btn-lg btn-block kiosk-submit" ${busy ? raw('disabled') : ''}>${busy ? t().sending : t().printLabels}</button>
+      <button type="submit" class="btn btn-primary btn-lg btn-block kiosk-submit">${t().next}</button>
     </form></div>`,
 
-    labels: () => html`${head(null)}<div class="kiosk-body"><section class="kiosk-card kiosk-labels">
-      <h1>${t().labelsTitle}</h1>
-      <p class="kiosk-printing"><span class="spinner"></span>${t().labelsPrinting}</p>
-      <ol class="kiosk-steps"><li>${t().labelsStep1(result.bags)}</li><li>${t().labelsStep2}</li></ol>
-      <div class="kiosk-minis" dir="ltr">${labelPages(result.bags).map((p) => html`<div class="k-mini">
-        <span class="k-mini-no">${orderNo(result.order_no)}</span>
-        <span class="k-mini-name" dir="auto">${result.name}</span>
-        <span class="k-mini-foot">Bag ${p.index} of ${p.of}</span></div>`)}</div>
+    preview: () => html`${head('form')}<div class="kiosk-body"><section class="kiosk-card kiosk-labels">
+      <h1>${t().previewTitle}</h1>
+      ${bannerBox()}
+      <p class="kiosk-sub">${t().previewText(form.bags)}</p>
+      <div class="kiosk-minis" dir="ltr">
+        ${labelPages(form.bags).map((p) => miniBag('K-····', fullName(), p))}
+        ${miniReceipt('····', fullName(), form.bags)}
+      </div>
       <div class="kiosk-actions">
-        <button type="button" class="btn btn-lg" data-k="print">${t().printAgain}</button>
-        <button type="button" class="btn btn-lg btn-primary" data-go="summary">${t().labelsDone}</button>
+        <button type="button" class="btn btn-lg" data-go="form">${t().edit}</button>
+        <button type="button" class="btn btn-lg btn-primary" data-k="confirm" ${busy ? raw('disabled') : ''}>${busy ? t().sending : t().confirm}</button>
       </div></section></div>`,
 
-    summary: () => html`${head(null)}<div class="kiosk-body"><section class="kiosk-card kiosk-summary" aria-live="polite">
+    done: () => html`${head(null)}<div class="kiosk-body"><section class="kiosk-card kiosk-summary" aria-live="polite">
       <div class="kiosk-check" aria-hidden="true">✓</div>
-      <h1>${t().summaryTitle}</h1>
-      ${result.returning ? html`<p class="kiosk-sub">${t().welcomeBack}</p>` : ''}
-      <p class="kiosk-sub">${t().yourNo}</p>
-      <div class="kiosk-orderno" dir="ltr">${orderNo(result.order_no)}</div>
+      <h1>${t().doneTitle}</h1>
+      <p class="kiosk-printing"><span class="spinner"></span>${t().printing}</p>
+      <p class="kiosk-sub">${t().stick(result.bags)}</p>
+      <p class="kiosk-sub">${t().yourId}</p>
+      <div class="kiosk-orderno" dir="ltr">${result.order_no}</div>
       <dl class="kiosk-info">
         <div><dt>${t().name}</dt><dd dir="auto">${result.name}</dd></div>
-        <div><dt>${t().phoneHere}</dt><dd dir="ltr">${result.phone}</dd></div>
-        <div><dt>${t().phoneIsrael}</dt><dd dir="ltr">${result.israel_phone}</dd></div>
         <div><dt>${t().bagsCount}</dt><dd>${result.bags}</dd></div>
+        <div><dt>${t().phoneHere}</dt><dd dir="ltr">${result.phone}</dd></div>
+        ${result.israel_phone ? html`<div><dt>${t().phoneIsrael}</dt><dd dir="ltr">${result.israel_phone}</dd></div>` : ''}
         <div><dt>${t().date}</dt><dd>${when(result.created_at)}</dd></div>
       </dl>
-      <p class="kiosk-hint">${t().trackHint}</p>
-      <button type="button" class="btn btn-lg btn-primary kiosk-finish" data-go="welcome">${t().finish}</button>
-      <p class="muted kiosk-countdown">${t().resetIn(summaryLeft)}</p>
+      <div class="kiosk-warn"><strong>${t().cancelNote}</strong><span>${t().howLogin}</span></div>
+      <div class="kiosk-actions">
+        <button type="button" class="btn btn-lg" data-k="print">${t().printAgain}</button>
+        <button type="button" class="btn btn-lg btn-primary" data-go="welcome">${t().finish}</button>
+      </div>
+      <p class="muted kiosk-countdown">${t().resetIn(doneLeft)}</p>
     </section></div>`,
 
-    track: () => (trackResult ? html`${head('menu')}<div class="kiosk-body"><section class="kiosk-card kiosk-track">
-      <h1>${t().trackTitle}</h1>
+    lookup: () => html`${head('info')}<div class="kiosk-body"><form class="kiosk-card" data-form="lookup" novalidate autocomplete="off">
+      <h1>${t().lookupTitle}</h1>
       ${bannerBox()}
-      ${trackResult.length ? html`<ul class="kiosk-orders">${trackResult.map(trackItem)}</ul>`
-        : html`<p class="kiosk-sub">${t().trackNone}</p>`}
-      <p class="muted kiosk-live"><span class="kiosk-dot" aria-hidden="true"></span>${t().trackAuto}</p>
+      <label class="field kiosk-field"><span>${t().idLabel}</span>
+        <input name="id" inputmode="numeric" value="${lookupForm.id}" maxlength="12" dir="ltr" ${inv('id')}>${err('id')}</label>
+      <label class="field kiosk-field"><span>${t().last4}</span>
+        <input name="last4" inputmode="numeric" value="${lookupForm.last4}" maxlength="4" dir="ltr" ${inv('last4')}>${err('last4')}</label>
+      <button type="submit" class="btn btn-primary btn-lg btn-block kiosk-submit" ${busy ? raw('disabled') : ''}>${busy ? t().sending : t().find}</button>
+    </form></div>`,
+
+    status: () => html`${head('lookup')}<div class="kiosk-body"><section class="kiosk-card kiosk-status">
+      <h1>${t().statusTitle}</h1>
+      ${bannerBox()}
+      <div class="kiosk-found">
+        <div class="kiosk-found-head"><span dir="ltr">ID ${found.order_no}</span><span>${found.bags} ${t().bagsWord} · ${when(found.created_at)}</span></div>
+        <p class="kiosk-state ${found.state}">${t()['state_' + found.state]}</p>
+        ${found.state === 'waiting' ? html`<p class="kiosk-sub">${t().waitingNote}</p>` : ''}
+        ${found.state === 'picked_up' ? html`<p class="kiosk-sub">${t().pickedNote}</p>` : ''}
+        ${found.state === 'cancelled' && found.justCancelled ? html`<p class="kiosk-sub">${t().cancelledMsg}</p>` : ''}
+      </div>
+      ${found.can_cancel ? (confirmingCancel ? html`<div class="kiosk-confirm">
+          <strong>${t().confirmCancelTitle}</strong><span>${t().confirmCancelText}</span>
+          <div class="kiosk-actions">
+            <button type="button" class="btn btn-lg" data-k="keep">${t().noKeep}</button>
+            <button type="button" class="btn btn-lg btn-danger" data-k="cancel-yes" ${busy ? raw('disabled') : ''}>${busy ? t().sending : t().yesCancel}</button>
+          </div></div>`
+        : html`<button type="button" class="btn btn-lg btn-block kiosk-cancel" data-k="cancel-ask">${t().cancelBtn}</button>`) : ''}
       <button type="button" class="btn btn-lg btn-primary kiosk-finish" data-go="welcome">${t().finish}</button>
-    </section></div>`
-      : html`${head('menu')}<div class="kiosk-body"><form class="kiosk-card" data-form="track" novalidate autocomplete="off">
-      <h1>${t().trackTitle}</h1>
-      ${bannerBox()}
-      <label class="field kiosk-field"><span>${t().trackPhone}</span>
-        <input name="phone" type="tel" inputmode="tel" value="${trackForm.phone}" maxlength="25" dir="ltr" ${inv('phone')}>${err('phone')}</label>
-      <label class="field kiosk-field"><span>${t().trackFirst}</span>
-        <input name="first" value="${trackForm.first}" maxlength="40" dir="auto" ${inv('first')}>${err('first')}</label>
-      <button type="submit" class="btn btn-primary btn-lg btn-block kiosk-submit" ${busy ? raw('disabled') : ''}>${busy ? t().sending : t().trackFind}</button>
-    </form></div>`),
+    </section></div>`,
   };
 
-  function trackItem(o) {
-    const st = stageOf(o.status);
-    const at = STAGES.indexOf(st);
-    return html`<li class="kiosk-order">
-      <div class="kiosk-order-head"><strong dir="ltr">${orderNo(o.order_no)}</strong>
-        <span>${o.bags} ${t().bagsWord} · ${t().droppedOff} ${when(o.created_at)}</span></div>
-      <p class="kiosk-order-note ${st}">${at >= 0 && st !== 'delivered' ? html`<span class="muted">${t().now}</span> ` : ''}${t()['stage_' + st]}</p>
-      ${at >= 0 ? html`<ol class="kiosk-progress">${STAGES.map((k, i) => html`<li class="${i < at || st === 'delivered' ? 'done' : i === at ? 'now' : ''}" ${i === at ? raw('aria-current="step"') : ''}>
-          <span class="kiosk-progress-dot" aria-hidden="true">${i < at || st === 'delivered' ? '✓' : i + 1}</span><span>${t()['step_' + k]}</span></li>`)}</ol>` : ''}
-    </li>`;
-  }
-
   function draw() {
-    const d = screen === 'welcome' ? 'ltr' : dir();
-    shell.setAttribute('dir', d);
+    shell.setAttribute('dir', screen === 'welcome' ? 'ltr' : dir());
     shell.setAttribute('lang', screen === 'welcome' ? 'en' : lang);
     shell.dataset.screen = screen;
     setHtml(body, screens[screen]());
@@ -186,10 +195,10 @@ export function render(container) {
 
   function go(next) {
     readForms();
-    errors = {}; banner = '';
+    errors = {}; banner = ''; confirmingCancel = false;
     if (next === 'welcome') { reset(); return; }
-    if (next === 'track' && screen === 'menu') trackResult = null;
-    if (next === 'summary') summaryLeft = SUMMARY_SECONDS;
+    if (next === 'lookup' && screen !== 'status') { lookupForm = { id: '', last4: '' }; }
+    if (next === 'done') doneLeft = DONE_SECONDS;
     screen = next;
     lastActivity = Date.now();
     draw();
@@ -200,27 +209,35 @@ export function render(container) {
     const f = $('form[data-form=dropoff]', body);
     if (f) form = { ...form, first: f.elements.first.value, middle: f.elements.middle.value, last: f.elements.last.value,
       phone: f.elements.phone.value, israel: f.elements.israel.value };
-    const tf = $('form[data-form=track]', body);
-    if (tf) trackForm = { phone: tf.elements.phone.value, first: tf.elements.first.value };
+    const lf = $('form[data-form=lookup]', body);
+    if (lf) lookupForm = { id: lf.elements.id.value, last4: lf.elements.last4.value };
   }
 
   function reset() {
     screen = 'welcome'; lang = 'he';
-    form = blankForm(); trackForm = { phone: '', first: '' }; trackResult = null;
+    form = blankForm(); lookupForm = { id: '', last4: '' }; found = null; confirmingCancel = false;
     result = null; errors = {}; banner = ''; busy = false;
     requestKey = newKey();
     setHtml(printArea, '');
     draw();
   }
 
+  // One label per bag, then one receipt for the person. Labels are in English for the office.
   function renderLabels() {
-    setHtml(printArea, html`${labelPages(result.bags).map((p) => html`<div class="k-label" data-size="${labelSize}">
+    const r = result;
+    setHtml(printArea, html`${labelPages(r.bags).map((p) => html`<div class="k-label" data-size="${labelSize}">
       <div class="k-label-org">${org}</div>
-      <div class="k-label-no">${orderNo(result.order_no)}</div>
-      <div class="k-label-name" dir="auto">${result.name}</div>
-      <div class="k-label-phone" dir="ltr">${result.phone}</div>
-      <div class="k-label-foot"><strong>Bag ${p.index} of ${p.of}</strong><span>${when(result.created_at)}</span></div>
-    </div>`)}`);
+      <div class="k-label-no">${orderNo(r.order_no)}</div>
+      <div class="k-label-name" dir="auto">${r.name}</div>
+      <div class="k-label-phone" dir="ltr">${r.phone}</div>
+      <div class="k-label-foot"><strong>Bag ${p.index} of ${p.of}</strong><span>${when(r.created_at)}</span></div>
+    </div>`)}<div class="k-label receipt" data-size="${labelSize}">
+      <div class="k-label-org">${org} · RECEIPT — KEEP THIS</div>
+      <div class="k-label-no">ID ${r.order_no}</div>
+      <div class="k-label-name" dir="auto">${r.name}</div>
+      <div class="k-label-phone">${r.bags} bag(s) · ${when(r.created_at)}</div>
+      <div class="k-label-foot"><span>To cancel: tablet → "I have an ID number"</span></div>
+    </div>`);
   }
 
   function printLabels() { setTimeout(() => window.print(), 150); }
@@ -230,18 +247,23 @@ export function render(container) {
     return /reach the server/.test(msg) || !navigator.onLine ? t().errOffline : `${t().errServer} (${msg})`;
   }
 
-  async function submitDropOff() {
+  function toPreview() {
     readForms();
     const c = checkDropOff(form, maxBags, lang);
     errors = c.errors; banner = '';
     if (!c.ok) { draw(); return; }
-    busy = true; draw();
+    form = { ...form, ...c.value };
+    go('preview');
+  }
+
+  async function confirmAndPrint() {
+    busy = true; banner = ''; draw();
     try {
-      result = await rpc('kiosk_submit', { p_first: c.value.first, p_middle: c.value.middle, p_last: c.value.last,
-        p_phone: c.value.phone, p_israel_phone: c.value.israel, p_bags: c.value.bags, p_request_key: requestKey });
+      result = await rpc('kiosk_submit', { p_first: form.first, p_middle: form.middle, p_last: form.last,
+        p_phone: form.phone, p_israel_phone: form.israel, p_bags: form.bags, p_request_key: requestKey });
       busy = false;
       renderLabels();
-      go('labels');
+      go('done');
       printLabels();
     } catch (e) {
       // keep the same request key: a retry after a lost reply must not create a second order
@@ -251,24 +273,34 @@ export function render(container) {
     }
   }
 
-  async function submitTrack({ quiet = false } = {}) {
-    if (!quiet) {
-      readForms();
-      const c = checkTrack(trackForm, lang);
-      errors = c.errors; banner = '';
-      if (!c.ok) { draw(); return; }
-      trackForm = c.value;
-      busy = true; draw();
-    }
+  async function lookUp() {
+    readForms();
+    const c = checkLookup(lookupForm, lang);
+    errors = c.errors; banner = '';
+    if (!c.ok) { draw(); return; }
+    busy = true; draw();
     try {
-      trackResult = await rpc('kiosk_track', { p_phone: trackForm.phone, p_first_name: trackForm.first });
-      banner = '';
-    } catch (e) {
-      if (!quiet) banner = failed(e);
-    } finally {
+      found = await rpc('kiosk_lookup', { p_order_no: c.value.id, p_last4: c.value.last4 });
+      found.last4 = c.value.last4;
       busy = false;
-      sinceRefresh = 0;
-      if (screen === 'track' && (!quiet || trackResult)) draw();
+      go('status');
+    } catch (e) {
+      busy = false;
+      banner = /KVISA_NOT_FOUND/.test(String(e.raw?.message || e.message)) ? t().notFound : failed(e);
+      draw();
+    }
+  }
+
+  async function cancelDropOff() {
+    busy = true; draw();
+    try {
+      await rpc('kiosk_cancel', { p_order_no: found.order_no, p_last4: found.last4 });
+      found = { ...found, state: 'cancelled', can_cancel: false, justCancelled: true };
+    } catch (e) {
+      banner = failed(e);
+    } finally {
+      busy = false; confirmingCancel = false;
+      draw();
     }
   }
 
@@ -297,14 +329,18 @@ export function render(container) {
   }
 
   const offs = [
-    on(container, 'click', '[data-lang]', (e, el) => { lang = el.dataset.lang; go('menu'); }),
+    on(container, 'click', '[data-lang]', (e, el) => { lang = el.dataset.lang; go('info'); }),
     on(container, 'click', '[data-go]', (e, el) => go(el.dataset.go)),
     on(container, 'click', '[data-k]', (e, el) => {
       const k = el.dataset.k;
       if (k === 'less' || k === 'more') {
         form.bags = Math.min(maxBags, Math.max(1, form.bags + (k === 'more' ? 1 : -1)));
         $('.kiosk-bags', body).textContent = form.bags;
-      } else if (k === 'print') printLabels();
+      } else if (k === 'confirm') { if (!busy) confirmAndPrint(); }
+      else if (k === 'print') printLabels();
+      else if (k === 'cancel-ask') { confirmingCancel = true; draw(); }
+      else if (k === 'keep') { confirmingCancel = false; draw(); }
+      else if (k === 'cancel-yes') { if (!busy) cancelDropOff(); }
       else if (k === 'logo') {
         const now = Date.now();
         taps = taps.filter((x) => now - x < 4000).concat(now);
@@ -314,23 +350,21 @@ export function render(container) {
     on(container, 'submit', 'form[data-form]', (e, f) => {
       e.preventDefault();
       if (busy) return;
-      if (f.dataset.form === 'dropoff') submitDropOff(); else submitTrack();
+      if (f.dataset.form === 'dropoff') toPreview(); else lookUp();
     }),
   ];
   const touch = () => { lastActivity = Date.now(); };
   ['pointerdown', 'keydown', 'input'].forEach((ev) => container.addEventListener(ev, touch));
 
   const timer = setInterval(() => {
-    if (screen === 'welcome' || document.querySelector('.modal-overlay')) return;
-    if (screen === 'summary') {
-      summaryLeft -= 1;
-      if (summaryLeft <= 0) reset();
-      else { const el = $('.kiosk-countdown', body); if (el) el.textContent = t().resetIn(summaryLeft); }
+    if (screen === 'welcome' || busy || document.querySelector('.modal-overlay')) return;
+    if (screen === 'done') {
+      doneLeft -= 1;
+      if (doneLeft <= 0) reset();
+      else { const el = $('.kiosk-countdown', body); if (el) el.textContent = t().resetIn(doneLeft); }
       return;
     }
-    if (busy) return;
-    if (Date.now() - lastActivity > IDLE[screen] * 1000) { reset(); return; }
-    if (screen === 'track' && trackResult && ++sinceRefresh >= TRACK_REFRESH) submitTrack({ quiet: true });
+    if (Date.now() - lastActivity > IDLE[screen] * 1000) reset();
   }, 1000);
 
   // Keep the tablet screen awake while this page is open (where the browser allows it).

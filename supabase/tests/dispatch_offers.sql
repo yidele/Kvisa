@@ -79,7 +79,7 @@ begin
       and (select count(*) from public.offer_recipients) = 0 and (select count(*) from public.task_dispatch) = 0);
     perform kvisa_tests.act_as(null);
     res := res || kvisa_tests.t('01 Offer notification text has no house number',
-      not exists (select 1 from public.notifications where user_id = u_a and kind = 'offer' and (body like '%12 %' or body like '%4B%' or title like '%12 %'))
+      not exists (select 1 from public.notifications where user_id = u_a and kind = 'offer' and (body like '%12 Main%' or body like '%Apt%' or body like '%4B%' or title like '%12 Main%'))
       and exists (select 1 from public.notifications where user_id = u_a and kind = 'offer'));
 
     -- ---- 2. accept → exact address ----

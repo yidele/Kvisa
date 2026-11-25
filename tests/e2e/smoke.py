@@ -210,88 +210,102 @@ def main():
         tab.wait_for_selector('.kiosk-welcome')
         check('a tablet login opening the main app is sent to the tablet app', '/tablet/' in tab.url, tab.url)
         wt = tab.inner_text('.kiosk')
-        check('welcome screen: logo, name and Hebrew / English / Yiddish', tab.query_selector('.kiosk-mark') is not None and 'Kvisa Test Org' in wt
+        check('1 welcome: logo and Hebrew / English / Yiddish', tab.query_selector('.kiosk-mark') is not None and 'Kvisa Test Org' in wt
               and 'עברית' in wt and 'English' in wt and 'אידיש' in wt and tab.query_selector('.sidebar') is None and not terr, terr[:3])
         tab.screenshot(path=str(SHOTS / 'tablet-1-welcome.png'))
         tab.goto(f'{base}/index.html#/settings'); tab.wait_for_url('**/tablet/**'); tab.wait_for_selector('.kiosk-welcome')
         check('tablet login cannot open office pages', 'Settings' not in tab.inner_text('body'))
 
-        # Yiddish menu, right-to-left
-        tab.click('[data-lang=yi]')
-        tab.wait_for_selector('.kiosk-menu')
-        check('Yiddish menu is right-to-left with both choices', tab.get_attribute('.kiosk', 'dir') == 'rtl'
-              and 'אפגעבן וועש' in tab.inner_text('.kiosk-menu') and 'וואו איז מיין וועש?' in tab.inner_text('.kiosk-menu'))
-        tab.screenshot(path=str(SHOTS / 'tablet-2-menu-yi.png'))
-        tab.click('[data-go=form]'); tab.wait_for_selector('form[data-form=dropoff]')
-        tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-err')
-        check('empty form shows Yiddish messages and sends nothing', 'ביטע שרייבט אריין אייער ערשטע נאמען' in tab.inner_text('.kiosk') and not rpcs('kiosk_submit'))
-        tab.click('.kiosk-back'); tab.wait_for_selector('.kiosk-menu')
+        # Yiddish: how it works, right-to-left
+        tab.click('[data-lang=yi]'); tab.wait_for_selector('.kiosk-how')
+        check('2 Yiddish "how it works" is right-to-left, with Continue and "I have an ID number"', tab.get_attribute('.kiosk', 'dir') == 'rtl'
+              and 'ווי אזוי עס ארבעט' in tab.inner_text('.kiosk') and 'איך האב אן ID נומער' in tab.inner_text('.kiosk') and len(tab.query_selector_all('.kiosk-how li')) == 4)
+        tab.screenshot(path=str(SHOTS / 'tablet-2-info-yi.png'))
         tab.click('.kiosk-back'); tab.wait_for_selector('.kiosk-welcome')
-        check('Back goes menu → welcome', True)
 
         # English drop-off, start to finish
-        tab.click('[data-lang=en]'); tab.wait_for_selector('.kiosk-menu')
-        check('English menu is left-to-right', tab.get_attribute('.kiosk', 'dir') == 'ltr' and 'Drop off laundry' in tab.inner_text('.kiosk-menu'))
-        tab.screenshot(path=str(SHOTS / 'tablet-2-menu-en.png'))
+        tab.click('[data-lang=en]'); tab.wait_for_selector('.kiosk-how')
+        it = tab.inner_text('.kiosk')
+        check('2 English "how it works" mentions about 2 days', 'How it works' in it and '2 days' in it and tab.get_attribute('.kiosk', 'dir') == 'ltr', it)
+        tab.screenshot(path=str(SHOTS / 'tablet-2-info-en.png'))
         tab.click('[data-go=form]'); tab.wait_for_selector('form[data-form=dropoff]')
+        tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-err')
+        et = tab.inner_text('form')
+        check('3 empty form explains what is missing (Israeli number not required) and sends nothing',
+              'Please type your first name' in et and 'Please type a valid phone number' in et and et.count('Please') == 3 and not rpcs('kiosk_submit'), et)
         ft = tab.inner_text('form')
-        check('form asks first, middle (optional), last name, phone here and phone in Israel', all(x in ft for x in
+        check('3 form asks first, middle (optional), last name, phone here and phone in Israel', all(x in ft for x in
               ['First name', 'Middle name', '(optional)', 'Last name', 'Phone number here (America)', 'Phone number in Israel', 'How many bags?']), ft)
         tab.fill('input[name=first]', 'Moshe'); tab.fill('input[name=last]', 'Levi')
-        tab.fill('input[name=phone]', '718-555-0101'); tab.fill('input[name=israel]', '052-123-4567')
+        tab.fill('input[name=phone]', '718-555-0101'); tab.fill('input[name=israel]', '12')
         tab.click('[data-k=more]'); tab.click('[data-k=more]')
-        check('bag stepper counts up', tab.inner_text('.kiosk-bags').strip() == '3')
+        check('3 bag stepper counts up', tab.inner_text('.kiosk-bags').strip() == '3')
         tab.screenshot(path=str(SHOTS / 'tablet-3-form.png'))
-        tab.click('.kiosk-submit')
-        tab.wait_for_selector('.kiosk-labels'); tab.wait_for_timeout(300)
+        tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-labels')
+        pt = tab.inner_text('.kiosk-labels')
+        check('4 preview shows one label per bag plus a receipt, before anything is sent',
+              len(tab.query_selector_all('.k-mini')) == 4 and len(tab.query_selector_all('.k-mini.receipt')) == 1 and 'Bag 3 of 3' in pt
+              and 'Confirm & print' in pt and not rpcs('kiosk_submit') and tab.evaluate('window.__prints') == 0, pt)
+        tab.screenshot(path=str(SHOTS / 'tablet-4-preview.png'))
+        tab.click('[data-go=form]'); tab.wait_for_selector('form[data-form=dropoff]')
+        check('4 Change details goes back with everything kept', tab.input_value('input[name=first]') == 'Moshe' and tab.inner_text('.kiosk-bags').strip() == '3')
+        tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-labels')
+        tab.click('[data-k=confirm]'); tab.wait_for_selector('.kiosk-summary'); tab.wait_for_timeout(300)
         a = rpcs('kiosk_submit')[-1]['args'] if rpcs('kiosk_submit') else {}
-        check('sends first/middle/last, both phones, bags and a request key', a.get('p_first') == 'Moshe' and a.get('p_middle') == '' and a.get('p_last') == 'Levi'
-              and a.get('p_phone') == '718-555-0101' and a.get('p_israel_phone') == '052-123-4567' and a.get('p_bags') == 3 and len(a.get('p_request_key', '')) == 36, a)
-        lt = tab.inner_text('.kiosk-labels')
-        check('labels screen shows each label and the instructions', len(tab.query_selector_all('.k-mini')) == 3 and 'Bag 3 of 3' in lt
-              and 'put one on each bag' in lt and 'press "Done"' in lt, lt)
-        check('labels print automatically, one page per bag', tab.evaluate('window.__prints') == 1 and len(tab.query_selector_all('#kiosk-print .k-label')) == 3)
-        check('labels screen fits the tablet', no_overflow() and not terr, terr[:3])
-        tab.screenshot(path=str(SHOTS / 'tablet-4-labels.png'))
+        check('5 Confirm sends the details once', len(rpcs('kiosk_submit')) == 1 and a.get('p_first') == 'Moshe' and a.get('p_last') == 'Levi'
+              and a.get('p_phone') == '718-555-0101' and a.get('p_israel_phone') == '12' and a.get('p_bags') == 3 and len(a.get('p_request_key', '')) == 36, a)
+        check('5 prints one label per bag plus the receipt', tab.evaluate('window.__prints') == 1 and len(tab.query_selector_all('#kiosk-print .k-label')) == 4
+              and len(tab.query_selector_all('#kiosk-print .k-label.receipt')) == 1 and 'ID 1015' in tab.inner_text('#kiosk-print .receipt'))
+        st = tab.inner_text('.kiosk-summary')
+        check('5 completed page shows the ID, details and how to cancel', all(x in st for x in
+              ['Completed!', '1015', 'Moshe <b>Levi</b>', '718-555-0101', '052-123-4567', 'taking your bags back', 'I have an ID number']), st)
+        check('5 completed page fits the tablet', no_overflow() and not terr, terr[:3])
+        tab.screenshot(path=str(SHOTS / 'tablet-5-completed.png'), full_page=True)
         tab.emulate_media(media='print')
         tab.pdf(path=str(SHOTS / 'tablet-labels.pdf'), prefer_css_page_size=True, print_background=True)
         tab.emulate_media(media='screen')
         tab.click('[data-k=print]'); tab.wait_for_timeout(300)
         check('Print again reprints', tab.evaluate('window.__prints') == 2)
-        tab.click('[data-go=summary]'); tab.wait_for_selector('.kiosk-summary')
-        st = tab.inner_text('.kiosk-summary')
-        check('summary shows order number, name, both phones, bags and how to track', all(x in st for x in
-              ['K-1015', 'Moshe <b>Levi</b>', '718-555-0101', '052-123-4567', 'Where is my laundry?']), st)
-        tab.screenshot(path=str(SHOTS / 'tablet-5-summary.png'))
         tab.click('[data-go=welcome]'); tab.wait_for_selector('.kiosk-welcome')
         check('Finish returns to the welcome screen with nothing left over', tab.inner_text('#kiosk-print').strip() == '')
+
+        # I have an ID number → waiting → cancel
+        tab.click('[data-lang=en]'); tab.click('[data-go=lookup]'); tab.wait_for_selector('form[data-form=lookup]')
+        tab.fill('input[name=id]', '1016'); tab.fill('input[name=last4]', '0000'); tab.click('.kiosk-submit')
+        tab.wait_for_selector('.notice-error')
+        check('6 a wrong ID or digits gets a clear message', "didn't find a drop-off" in tab.inner_text('.notice-error'))
+        tab.fill('input[name=id]', 'K-1016'); tab.fill('input[name=last4]', '4567'); tab.click('.kiosk-submit')
+        tab.wait_for_selector('.kiosk-status')
+        la = rpcs('kiosk_lookup')[-1]['args']
+        sv = tab.inner_text('.kiosk-status')
+        check('6 ID lookup shows "waiting for pickup" and a cancel button', la == {'p_order_no': 1016, 'p_last4': '4567'}
+              and 'Waiting for pickup' in sv and 'Cancel my drop-off' in sv, (la, sv))
+        tab.screenshot(path=str(SHOTS / 'tablet-6-waiting.png'))
+        tab.click('[data-k=cancel-ask]'); tab.wait_for_selector('.kiosk-confirm')
+        tab.click('[data-k=keep]'); tab.wait_for_selector('.kiosk-cancel')
+        check('6 "No, keep it" cancels nothing', not rpcs('kiosk_cancel'))
+        tab.click('[data-k=cancel-ask]'); tab.click('[data-k=cancel-yes]'); tab.wait_for_selector('.kiosk-state.cancelled')
+        check('6 "Yes, cancel" cancels it', rpcs('kiosk_cancel')[-1]['args'] == {'p_order_no': 1016, 'p_last4': '4567'}
+              and 'was cancelled' in tab.inner_text('.kiosk-status') and tab.query_selector('.kiosk-cancel') is None)
+        tab.screenshot(path=str(SHOTS / 'tablet-6-cancelled.png'))
+        tab.click('.kiosk-back'); tab.wait_for_selector('form[data-form=lookup]')
+        tab.fill('input[name=id]', '1009'); tab.fill('input[name=last4]', '4567'); tab.click('.kiosk-submit')
+        tab.wait_for_selector('.kiosk-state.picked_up')
+        check('6 once picked up there is no cancel button', 'Picked up' in tab.inner_text('.kiosk-status') and tab.query_selector('.kiosk-cancel') is None)
+        check('6 status page fits the tablet', no_overflow() and not terr, terr[:3])
+        tab.click('[data-go=welcome]'); tab.wait_for_selector('.kiosk-welcome')
 
         # a second person gets a new request key
         tab.click('[data-lang=he]'); tab.click('[data-go=form]'); tab.wait_for_selector('form[data-form=dropoff]')
         check('Hebrew form is right-to-left and starts blank', tab.get_attribute('.kiosk', 'dir') == 'rtl' and tab.input_value('input[name=first]') == '')
-        tab.fill('input[name=first]', 'Dovid'); tab.fill('input[name=last]', 'Klein')
-        tab.fill('input[name=phone]', '0529999999'); tab.fill('input[name=israel]', '0529999999')
-        tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-labels')
+        tab.fill('input[name=first]', 'Dovid'); tab.fill('input[name=last]', 'Klein'); tab.fill('input[name=phone]', '0529999999')
+        tab.click('.kiosk-submit'); tab.click('[data-k=confirm]'); tab.wait_for_selector('.kiosk-summary')
         keys = [w['args']['p_request_key'] for w in rpcs('kiosk_submit')]
         check('each new person gets a new request key', len(keys) == 2 and keys[0] != keys[1], keys)
-        tab.click('[data-go=summary]'); tab.click('[data-go=welcome]'); tab.wait_for_selector('.kiosk-welcome')
-
-        # where is my laundry?
-        tab.click('[data-lang=en]'); tab.click('[data-go=track]'); tab.wait_for_selector('form[data-form=track]')
-        tab.fill('input[name=phone]', '052-123-4567'); tab.fill('input[name=first]', 'Moshe')
-        tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-orders')
-        tr = tab.inner_text('.kiosk-track')
-        ta = rpcs('kiosk_track')[-1]['args']
-        check('tracking sends phone + first name', ta == {'p_phone': '052-123-4567', 'p_first_name': 'Moshe'}, ta)
-        check('tracking shows where it is now and four simple steps', 'K-1016' in tr and 'Now: Picked up — being washed' in tr and '2 bags' in tr
-              and tab.inner_text('.kiosk-order >> nth=0 >> li.now').strip().endswith('Being washed') and 'Updates automatically' in tr, tr)
-        check('a delivered order shows all steps done', len(tab.query_selector_all('.kiosk-order >> nth=1 >> li.done')) == 4
-              and 'Brought back' in tab.inner_text('.kiosk-order >> nth=1 >> .kiosk-order-note'))
-        check('tracking screen fits the tablet', no_overflow() and not terr, terr[:3])
-        tab.screenshot(path=str(SHOTS / 'tablet-6-track.png'))
-        tab.click('.kiosk-back'); tab.wait_for_selector('.kiosk-menu')
+        tab.click('[data-go=welcome]'); tab.wait_for_selector('.kiosk-welcome')
 
         # leave tablet mode
+        tab.click('[data-lang=en]'); tab.wait_for_selector('.kiosk-how')
         for _ in range(5): tab.click('[data-k=logo]')
         tab.wait_for_selector('.modal input[type=password]')
         tab.fill('.modal input[type=password]', 'wrong'); tab.click('.modal button[type=submit]')
@@ -308,10 +322,14 @@ def main():
         sm.route('https://cdn.jsdelivr.net/**', lambda r: r.fulfill(status=200, content_type='application/javascript', body=FAKE))
         sm.add_init_script("localStorage.setItem('fakeRole','kiosk'); localStorage.removeItem('fakeLoggedOut'); window.print = () => {};")
         sm.goto(f'{base}/tablet/'); sm.wait_for_selector('.kiosk-welcome')
-        fits = [not sm.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2')]
-        sm.click('[data-lang=he]'); sm.wait_for_selector('.kiosk-menu'); fits.append(not sm.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2'))
-        sm.click('[data-go=form]'); sm.wait_for_selector('form[data-form=dropoff]'); fits.append(not sm.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2'))
-        check('tablet screens also fit a small screen', all(fits), fits)
+        fits = lambda: not sm.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2')
+        ok = [fits()]
+        sm.click('[data-lang=he]'); sm.wait_for_selector('.kiosk-how'); ok.append(fits())
+        sm.click('[data-go=form]'); sm.wait_for_selector('form[data-form=dropoff]'); ok.append(fits())
+        sm.fill('input[name=first]', 'א'); sm.fill('input[name=last]', 'ב'); sm.fill('input[name=phone]', '0529999999')
+        sm.click('[data-k=more]'); sm.click('[data-k=more]'); sm.click('[data-k=more]')
+        sm.click('.kiosk-submit'); sm.wait_for_selector('.kiosk-labels'); ok.append(fits())
+        check('tablet screens also fit a small screen', all(ok), ok)
         sctx.close()
 
         # the separate tablet app: staff can try it with their own account

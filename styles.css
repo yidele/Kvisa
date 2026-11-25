@@ -404,18 +404,18 @@ body.kiosk-mode { overscroll-behavior: none; }
 .kiosk-langs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; width: 100%; max-width: 720px; }
 .kiosk-lang-btn { min-height: 110px; border-radius: 18px; border: 2px solid var(--border-strong); background: var(--surface); color: var(--text);
   font: 700 1.9rem/1.2 var(--font); cursor: pointer; box-shadow: var(--shadow); }
-.kiosk-lang-btn:active, .kiosk-choice:active { transform: scale(.98); border-color: var(--accent); }
 
-/* menu */
-.kiosk-menu { width: 100%; max-width: 820px; text-align: center; }
-.kiosk-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; margin-top: 1.25rem; }
-.kiosk-choice { display: flex; flex-direction: column; align-items: center; gap: .5rem; padding: 2rem 1.25rem; min-height: 260px; justify-content: center;
-  border-radius: 22px; border: 2px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; box-shadow: var(--shadow); }
-.kiosk-choice strong { font-size: 1.7rem; }
-.kiosk-choice span { color: var(--text-2); font-size: 1.1rem; }
-.kiosk-choice.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.kiosk-choice.primary span { color: var(--accent-ink); opacity: .9; }
+/* how it works */
+.kiosk-how { list-style: none; padding: 0; margin: 1rem 0 1.5rem; display: flex; flex-direction: column; gap: .9rem; }
+.kiosk-how li { display: flex; align-items: flex-start; gap: .9rem; font-size: 1.25rem; }
+.kiosk-how-no { flex: none; width: 42px; height: 42px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 800; }
+.kiosk-idlink { display: flex; align-items: center; gap: 1rem; width: 100%; margin-top: 1rem; padding: 1rem 1.25rem; border-radius: 14px;
+  border: 2px solid var(--border-strong); background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; text-align: start; }
+.kiosk-idlink strong { display: block; font-size: 1.25rem; }
+.kiosk-idlink small { color: var(--text-2); font-size: 1rem; }
 .kiosk-ic { width: 72px; height: 72px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.kiosk-ic.sm { width: 48px; height: 48px; flex: none; color: var(--accent); }
+.kiosk-lang-btn:active, .kiosk-idlink:active { transform: scale(.98); border-color: var(--accent); }
 
 /* forms */
 .kiosk-names { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1rem; }
@@ -431,14 +431,14 @@ body.kiosk-mode { overscroll-behavior: none; }
 
 /* labels */
 .kiosk-printing { display: flex; align-items: center; gap: .6rem; color: var(--accent); font-weight: 600; }
-.kiosk-steps { font-size: 1.25rem; padding-inline-start: 1.5rem; margin: .5rem 0 1rem; }
-.kiosk-steps li { margin: .35rem 0; }
 .kiosk-minis { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; margin: 1rem 0; }
 .k-mini { width: 150px; height: 200px; background: #fff; color: #000; border: 2px dashed #9aa4b2; border-radius: 10px; padding: .7rem;
   display: flex; flex-direction: column; justify-content: space-between; font-family: Arial, Helvetica, sans-serif; box-shadow: var(--shadow); }
 .k-mini-no { font-size: 1.6rem; font-weight: 800; }
 .k-mini-name { font-weight: 700; font-size: 1rem; word-break: break-word; }
 .k-mini-foot { font-size: .85rem; font-weight: 700; border-top: 2px solid #000; padding-top: .3rem; }
+.k-mini.receipt { border: 3px solid var(--accent); background: #f4f8ff; }
+.k-mini-tag { font-size: .75rem; font-weight: 800; text-transform: uppercase; color: #1f5fae; }
 .kiosk-actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; margin: 1.25rem 0 .5rem; }
 .kiosk-actions .btn { min-width: 200px; min-height: 68px; font-size: 1.2rem; }
 
@@ -450,42 +450,33 @@ body.kiosk-mode { overscroll-behavior: none; }
   background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem; }
 .kiosk-info dt { color: var(--muted); font-size: .95rem; }
 .kiosk-info dd { margin: 0; font-weight: 700; font-size: 1.2rem; }
-.kiosk-hint { background: var(--info-soft); color: var(--text); border-radius: 12px; padding: .9rem 1.1rem; font-size: 1.1rem; text-align: start; }
 .kiosk-finish { min-width: 220px; min-height: 68px; font-size: 1.25rem; margin-top: .5rem; }
 
-/* tracking */
-.kiosk-track { text-align: start; }
-.kiosk-orders { list-style: none; padding: 0; margin: 1rem 0; display: flex; flex-direction: column; gap: 1rem; }
-.kiosk-order { border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.1rem; background: var(--surface-2); }
-.kiosk-order-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; flex-wrap: wrap; margin-bottom: .75rem; }
-.kiosk-order-head strong { font-size: 1.5rem; color: var(--accent); }
-.kiosk-order-head span { color: var(--text-2); }
-.kiosk-progress { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .5rem; }
-.kiosk-progress li { display: flex; flex-direction: column; align-items: center; text-align: center; gap: .35rem; font-size: .95rem; color: var(--muted); }
-.kiosk-progress-dot { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; background: var(--surface); border: 2px solid var(--border-strong); }
-.kiosk-progress li.done { color: var(--ok); }
-.kiosk-progress li.done .kiosk-progress-dot { background: var(--ok); border-color: var(--ok); color: #fff; }
-.kiosk-progress li.now { color: var(--text); font-weight: 700; }
-.kiosk-progress li.now .kiosk-progress-dot { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 5px var(--accent-soft); }
-.kiosk-order-note { font-weight: 700; font-size: 1.2rem; margin: 0 0 .85rem; }
-.kiosk-order-note.attention { color: var(--warn); }
-.kiosk-order-note.cancelled { color: var(--muted); }
-.kiosk-live { display: flex; align-items: center; gap: .5rem; }
-.kiosk-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); }
-.kiosk-track .kiosk-finish { display: block; margin: .75rem auto 0; }
+/* completed + "I have an ID number" */
+.kiosk-warn { display: flex; flex-direction: column; gap: .35rem; background: var(--warn-soft); color: var(--text); border-radius: 12px; padding: .9rem 1.1rem; font-size: 1.1rem; text-align: start; }
+.kiosk-warn strong { color: var(--warn); }
+.kiosk-found { border: 1px solid var(--border); border-radius: 14px; padding: 1rem 1.1rem; background: var(--surface-2); margin: 1rem 0; }
+.kiosk-found-head { display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; color: var(--text-2); }
+.kiosk-found-head span:first-child { font-weight: 800; font-size: 1.3rem; color: var(--accent); }
+.kiosk-state { font-size: 1.8rem; font-weight: 800; margin: .5rem 0 .25rem; }
+.kiosk-state.waiting { color: var(--wait); } .kiosk-state.picked_up, .kiosk-state.returned { color: var(--ok); } .kiosk-state.cancelled { color: var(--muted); }
+.kiosk-cancel { color: var(--danger); border-color: var(--danger); min-height: 64px; font-size: 1.2rem; }
+.kiosk-confirm { display: flex; flex-direction: column; gap: .35rem; border: 2px solid var(--danger); border-radius: 14px; padding: 1rem 1.1rem; font-size: 1.1rem; }
+.kiosk-confirm strong { font-size: 1.3rem; }
+.kiosk-status .kiosk-finish { display: block; margin: 1rem auto 0; }
 body.kiosk-mode .modal-overlay { font-size: 18px; }
 #kiosk-print { display: none; }
 @media (max-width: 700px) {
   .kiosk-card { padding: 1.1rem; } .kiosk h1 { font-size: 1.6rem; } .kiosk-orderno { font-size: 3rem; }
-  .kiosk-langs, .kiosk-choices, .kiosk-names, .kiosk-phones, .kiosk-info { grid-template-columns: 1fr; }
-  .kiosk-lang-btn { min-height: 80px; } .kiosk-choice { min-height: 180px; }
-  .kiosk-progress li { font-size: .8rem; }
+  .kiosk-langs, .kiosk-names, .kiosk-phones, .kiosk-info { grid-template-columns: 1fr; }
+  .kiosk-lang-btn { min-height: 80px; } .kiosk-how li { font-size: 1.1rem; }
 }
 
 /* printed bag labels: one per page, page size set by the tablet from Settings */
 .k-label { box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
   break-after: page; page-break-after: always; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; }
 .k-label:last-child { break-after: auto; page-break-after: auto; }
+.k-label.receipt { outline: 4px solid #000; outline-offset: -10px; }
 .k-label-org { font-size: 12pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
 .k-label-no { font-size: 60pt; font-weight: 800; line-height: 1; }
 .k-label-name { font-size: 26pt; font-weight: 700; line-height: 1.1; word-break: break-word; }

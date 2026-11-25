@@ -1,4 +1,4 @@
-// Tablet (kiosk) helpers: wording in Hebrew, English and Yiddish, input checks, label sizes, tracking stages.
+// Tablet (kiosk) helpers: wording in Hebrew, English and Yiddish, input checks, label sizes.
 // Pure — no DOM, no network — unit tested in tests/unit.
 
 export const LANGS = {
@@ -8,108 +8,124 @@ export const LANGS = {
 };
 
 // Every language has exactly the same keys (checked by a unit test).
+// The "how it works" steps are a draft until the organization sends its own wording.
 export const TEXT = {
   he: {
-    tagline: 'מסירת כביסה ומעקב',
-    menuTitle: 'מה תרצו לעשות?',
-    newCall: 'מסירת כביסה', newCallSub: 'קבלו מדבקות לשקיות שלכם',
-    track: 'איפה הכביסה שלי?', trackSub: 'בדקו איפה השקיות שלכם עכשיו',
+    tagline: 'מסירת כביסה',
     back: 'חזרה',
-    formTitle: 'מסירת כביסה',
+    infoTitle: 'איך זה עובד',
+    infoSteps: [
+      'ממלאים את השם ומספרי הטלפון.',
+      'מדפיסים את המדבקות ומדביקים אחת על כל שקית.',
+      'משאירים את השקיות כאן. נהג אוסף אותן, והן חוזרות נקיות תוך כיומיים.',
+      'שומרים את הקבלה: עם המספר המזהה אפשר לבדוק או לבטל את המסירה בטאבלט הזה.',
+    ],
+    continue: 'המשך', haveId: 'יש לי מספר מזהה', haveIdSub: 'בדיקה או ביטול של מסירה',
+    formTitle: 'הפרטים שלכם',
     first: 'שם פרטי', middle: 'שם אמצעי', optional: '(לא חובה)', last: 'שם משפחה',
     phoneHere: 'מספר טלפון כאן (באמריקה)', phoneIsrael: 'מספר טלפון בארץ ישראל',
-    bags: 'כמה שקיות?', less: 'פחות', more: 'עוד',
-    printLabels: 'הדפסת המדבקות שלי', sending: 'שולח…',
-    labelsTitle: 'המדבקות שלכם',
-    labelsPrinting: 'המדבקות מודפסות עכשיו…',
-    labelsStep1: (b) => (b === 1 ? 'קחו את המדבקה מהמדפסת והדביקו אותה על השקית.' : `קחו את ${b} המדבקות מהמדפסת והדביקו מדבקה אחת על כל שקית.`),
-    labelsStep2: 'כשכל המדבקות על השקיות, לחצו "סיימתי".',
-    printAgain: 'הדפסה חוזרת', labelsDone: 'סיימתי — המדבקות על השקיות',
-    bagOf: (i, n) => `שקית ${i} מתוך ${n}`,
-    summaryTitle: 'הכול מוכן!', yourNo: 'מספר ההזמנה שלכם',
-    name: 'שם', bagsCount: 'שקיות', date: 'תאריך', welcomeBack: 'שמחים לראותכם שוב.',
-    trackHint: 'תמיד אפשר לבדוק איפה הכביסה: בטאבלט הזה לחצו "איפה הכביסה שלי?" והקלידו את מספר הטלפון והשם הפרטי.',
-    finish: 'סיום', resetIn: (s) => `המסך יחזור להתחלה בעוד ${s} שניות`,
-    trackTitle: 'איפה הכביסה שלי?',
-    trackPhone: 'מספר הטלפון שלכם (כאן או בארץ ישראל)', trackFirst: 'השם הפרטי שלכם', trackFind: 'הצג את הכביסה שלי',
-    trackNone: 'לא מצאנו כביסה למספר ולשם האלה.', trackAuto: 'מתעדכן אוטומטית',
-    order: 'הזמנה', droppedOff: 'נמסר', bagsWord: 'שקיות', now: 'עכשיו:',
-    step_pickup: 'נמסר', step_washing: 'בכביסה', step_return: 'כובס', step_delivered: 'הוחזר',
-    stage_pickup: 'ממתין לנהג שיאסוף', stage_washing: 'נאסף — בכביסה', stage_return: 'כובס — ממתין להחזרה', stage_delivered: 'הוחזר',
-    stage_attention: 'המשרד בודק את ההזמנה הזו', stage_cancelled: 'בוטל',
-    errFirst: 'נא להקליד שם פרטי.', errLast: 'נא להקליד שם משפחה.',
-    errPhone: 'נא להקליד מספר טלפון תקין.', errIsrael: 'נא להקליד מספר טלפון תקין בארץ ישראל.',
+    bags: 'כמה שקיות?', less: 'פחות', more: 'עוד', next: 'הצג את המדבקות שלי',
+    previewTitle: 'בדקו את המדבקות',
+    previewText: (b) => (b === 1 ? 'תקבלו מדבקה אחת לשקית, וקבלה אחת בשבילכם עם המספר המזהה.' : `תקבלו ${b} מדבקות, אחת לכל שקית, וקבלה אחת בשבילכם עם המספר המזהה.`),
+    receipt: 'הקבלה שלכם', confirm: 'אישור והדפסה', edit: 'שינוי פרטים', sending: 'שולח…',
+    doneTitle: 'הושלם!', printing: 'המדבקות מודפסות עכשיו…',
+    stick: (b) => (b === 1 ? 'הדביקו את המדבקה על השקית ושמרו את הקבלה.' : 'הדביקו מדבקה אחת על כל שקית ושמרו את הקבלה.'),
+    yourId: 'המספר המזהה שלכם', name: 'שם', bagsCount: 'שקיות', bagsWord: 'שקיות', date: 'תאריך',
+    cancelNote: 'אם מסיבה כלשהי אתם לוקחים את השקיות בחזרה, היכנסו עם המספר המזהה ובטלו את המסירה.',
+    howLogin: 'בטאבלט הזה: בחרו שפה ואז "יש לי מספר מזהה".',
+    printAgain: 'הדפסה חוזרת', finish: 'סיום', resetIn: (s) => `המסך יחזור להתחלה בעוד ${s} שניות`,
+    lookupTitle: 'יש לי מספר מזהה',
+    idLabel: 'המספר המזהה (על הקבלה)', last4: '4 הספרות האחרונות של מספר הטלפון', find: 'המשך',
+    statusTitle: 'המסירה שלכם',
+    state_waiting: 'ממתין לאיסוף', state_picked_up: 'נאסף', state_cancelled: 'בוטל', state_returned: 'הוחזר',
+    waitingNote: 'השקיות עוד לא נאספו. אם אתם לוקחים אותן בחזרה, בטלו כאן.',
+    pickedNote: 'השקיות נאספו. לכל שינוי פנו בבקשה למשרד.',
+    cancelBtn: 'ביטול המסירה', confirmCancelTitle: 'לבטל את המסירה?', confirmCancelText: 'הנהג לא יבוא לקחת את השקיות האלה.',
+    yesCancel: 'כן, לבטל', noKeep: 'לא, להשאיר', cancelledMsg: 'המסירה בוטלה.',
+    errFirst: 'נא להקליד שם פרטי.', errLast: 'נא להקליד שם משפחה.', errPhone: 'נא להקליד מספר טלפון תקין.',
     errBags: (max) => `מספר השקיות חייב להיות בין 1 ל־${max}.`,
+    errId: 'נא להקליד את המספר המזהה מהקבלה.', errLast4: 'נא להקליד 4 ספרות.',
+    notFound: 'לא מצאנו מסירה עם המספר והספרות האלה. בדקו ונסו שוב.',
     errServer: 'משהו השתבש. נסו שוב, או פנו למשרד.', errOffline: 'אין חיבור לאינטרנט. נסו שוב בעוד רגע.',
     exitTitle: 'יציאה ממצב טאבלט', exitPrompt: 'הקלידו את הסיסמה של חשבון הטאבלט כדי לצאת.', password: 'סיסמה', exit: 'יציאה', cancel: 'ביטול',
     errPassword: 'סיסמה שגויה.',
   },
   en: {
-    tagline: 'Laundry drop-off & tracking',
-    menuTitle: 'What would you like to do?',
-    newCall: 'Drop off laundry', newCallSub: 'Get labels for your bags',
-    track: 'Where is my laundry?', trackSub: 'See where your bags are now',
+    tagline: 'Laundry drop-off',
     back: 'Back',
-    formTitle: 'Drop off laundry',
+    infoTitle: 'How it works',
+    infoSteps: [
+      'Fill in your name and phone numbers.',
+      'Print your labels and put one on each bag.',
+      'Leave your bags here. A driver picks them up, and they come back washed in about 2 days.',
+      'Keep your receipt: with your ID number you can check or cancel your drop-off on this tablet.',
+    ],
+    continue: 'Continue', haveId: 'I have an ID number', haveIdSub: 'Check or cancel a drop-off',
+    formTitle: 'Your details',
     first: 'First name', middle: 'Middle name', optional: '(optional)', last: 'Last name',
     phoneHere: 'Phone number here (America)', phoneIsrael: 'Phone number in Israel',
-    bags: 'How many bags?', less: 'Fewer', more: 'More',
-    printLabels: 'Print my labels', sending: 'Sending…',
-    labelsTitle: 'Your labels',
-    labelsPrinting: 'Your labels are printing now…',
-    labelsStep1: (b) => (b === 1 ? 'Take the label from the printer and put it on your bag.' : `Take the ${b} labels from the printer and put one on each bag.`),
-    labelsStep2: 'When all the labels are on your bags, press "Done".',
-    printAgain: 'Print again', labelsDone: 'Done — the labels are on',
-    bagOf: (i, n) => `Bag ${i} of ${n}`,
-    summaryTitle: 'All set!', yourNo: 'Your order number',
-    name: 'Name', bagsCount: 'Bags', date: 'Date', welcomeBack: 'Welcome back.',
-    trackHint: 'You can check on your laundry any time: on this tablet, tap "Where is my laundry?" and type your phone number and first name.',
-    finish: 'Finish', resetIn: (s) => `This screen starts over in ${s} seconds`,
-    trackTitle: 'Where is my laundry?',
-    trackPhone: 'Your phone number (here or in Israel)', trackFirst: 'Your first name', trackFind: 'Show my laundry',
-    trackNone: "We didn't find any laundry for this phone number and name.", trackAuto: 'Updates automatically',
-    order: 'Order', droppedOff: 'Dropped off', bagsWord: 'bags', now: 'Now:',
-    step_pickup: 'Dropped off', step_washing: 'Being washed', step_return: 'Washed', step_delivered: 'Brought back',
-    stage_pickup: 'Waiting for a driver to pick it up', stage_washing: 'Picked up — being washed', stage_return: 'Washed — waiting to be brought back', stage_delivered: 'Brought back',
-    stage_attention: 'The office is checking on this order', stage_cancelled: 'Cancelled',
-    errFirst: 'Please type your first name.', errLast: 'Please type your last name.',
-    errPhone: 'Please type a valid phone number.', errIsrael: 'Please type a valid phone number in Israel.',
+    bags: 'How many bags?', less: 'Fewer', more: 'More', next: 'Show my labels',
+    previewTitle: 'Check your labels',
+    previewText: (b) => (b === 1 ? 'You will get 1 label for your bag, and 1 receipt for you with your ID number.' : `You will get ${b} labels, one for each bag, and 1 receipt for you with your ID number.`),
+    receipt: 'Your receipt', confirm: 'Confirm & print', edit: 'Change details', sending: 'Sending…',
+    doneTitle: 'Completed!', printing: 'Your labels are printing now…',
+    stick: (b) => (b === 1 ? 'Put the label on your bag and keep the receipt.' : 'Put one label on each bag and keep the receipt.'),
+    yourId: 'Your ID number', name: 'Name', bagsCount: 'Bags', bagsWord: 'bags', date: 'Date',
+    cancelNote: 'If for some reason you are taking your bags back, make sure to log in with your ID number and cancel.',
+    howLogin: 'On this tablet: choose your language, then "I have an ID number".',
+    printAgain: 'Print again', finish: 'Finish', resetIn: (s) => `This screen starts over in ${s} seconds`,
+    lookupTitle: 'I have an ID number',
+    idLabel: 'Your ID number (on your receipt)', last4: 'Last 4 digits of your phone number', find: 'Continue',
+    statusTitle: 'Your drop-off',
+    state_waiting: 'Waiting for pickup', state_picked_up: 'Picked up', state_cancelled: 'Cancelled', state_returned: 'Returned',
+    waitingNote: 'Your bags have not been picked up yet. If you are taking them back, cancel here.',
+    pickedNote: 'Your bags were picked up. To change anything, please ask the office.',
+    cancelBtn: 'Cancel my drop-off', confirmCancelTitle: 'Cancel this drop-off?', confirmCancelText: 'The driver will not come for these bags.',
+    yesCancel: 'Yes, cancel', noKeep: 'No, keep it', cancelledMsg: 'Your drop-off was cancelled.',
+    errFirst: 'Please type your first name.', errLast: 'Please type your last name.', errPhone: 'Please type a valid phone number.',
     errBags: (max) => `Number of bags must be from 1 to ${max}.`,
+    errId: 'Please type the ID number from your receipt.', errLast4: 'Please type 4 digits.',
+    notFound: "We didn't find a drop-off with this ID and these digits. Please check and try again.",
     errServer: 'Something went wrong. Please try again, or ask the office.', errOffline: 'No internet connection. Please try again in a moment.',
     exitTitle: 'Leave tablet mode', exitPrompt: "Type the tablet account's password to leave.", password: 'Password', exit: 'Leave', cancel: 'Cancel',
     errPassword: 'Wrong password.',
   },
   yi: {
-    tagline: 'אפגעבן וועש און נאכקוקן',
-    menuTitle: 'וואס ווילט איר טון?',
-    newCall: 'אפגעבן וועש', newCallSub: 'באקומט לעיבלס פאר אייערע זעק',
-    track: 'וואו איז מיין וועש?', trackSub: 'זעט וואו אייערע זעק האלטן יעצט',
+    tagline: 'אפגעבן וועש',
     back: 'צוריק',
-    formTitle: 'אפגעבן וועש',
+    infoTitle: 'ווי אזוי עס ארבעט',
+    infoSteps: [
+      'שרייבט אריין אייער נאמען און טעלעפאן נומערן.',
+      'דרוקט די לעיבלס און קלעפט איינס אויף יעדן זאק.',
+      'לאזט די זעק דא. א דרייווער נעמט זיי אפ, און זיי קומען צוריק געוואשן אין בערך 2 טעג.',
+      'האלט אן אייער קבלה: מיט אייער ID נומער קענט איר נאכקוקן אדער אפשטעלן אויף דעם טאבלעט.',
+    ],
+    continue: 'ווייטער', haveId: 'איך האב אן ID נומער', haveIdSub: 'נאכקוקן אדער אפשטעלן',
+    formTitle: 'אייערע פרטים',
     first: 'ערשטע נאמען', middle: 'מיטלסטע נאמען', optional: '(נישט נייטיג)', last: 'פאמיליע נאמען',
     phoneHere: 'טעלעפאן נומער דא (אין אמעריקע)', phoneIsrael: 'טעלעפאן נומער אין ארץ ישראל',
-    bags: 'וויפיל זעק?', less: 'ווייניגער', more: 'מער',
-    printLabels: 'דרוקט מיינע לעיבלס', sending: 'שיקט…',
-    labelsTitle: 'אייערע לעיבלס',
-    labelsPrinting: 'די לעיבלס ווערן יעצט געדרוקט…',
-    labelsStep1: (b) => (b === 1 ? 'נעמט דעם לעיבל פון פרינטער און קלעפט עס אויף אייער זאק.' : `נעמט די ${b} לעיבלס פון פרינטער און קלעפט איינס אויף יעדן זאק.`),
-    labelsStep2: 'ווען אלע לעיבלס זענען אויף די זעק, דרוקט "פארטיג".',
-    printAgain: 'דרוקט נאכאמאל', labelsDone: 'פארטיג — די לעיבלס זענען אויף',
-    bagOf: (i, n) => `זאק ${i} פון ${n}`,
-    summaryTitle: 'אלעס איז גרייט!', yourNo: 'אייער ארדער נומער',
-    name: 'נאמען', bagsCount: 'זעק', date: 'דאטום', welcomeBack: 'מיר פרייען זיך אייך ווידער צו זען.',
-    trackHint: 'איר קענט אלעמאל נאכקוקן אייער וועש: אויף דעם טאבלעט, דרוקט "וואו איז מיין וועש?" און שרייבט אריין אייער טעלעפאן נומער און ערשטע נאמען.',
-    finish: 'ענדיגן', resetIn: (s) => `דער סקרין הייבט זיך אן פון אנפאנג אין ${s} סעקונדעס`,
-    trackTitle: 'וואו איז מיין וועש?',
-    trackPhone: 'אייער טעלעפאן נומער (דא אדער אין ארץ ישראל)', trackFirst: 'אייער ערשטע נאמען', trackFind: 'ווייזט מיין וועש',
-    trackNone: 'מיר האבן נישט געטראפן קיין וועש פאר דעם נומער און נאמען.', trackAuto: 'דערהיינטיגט זיך אליין',
-    order: 'ארדער', droppedOff: 'אפגעגעבן', bagsWord: 'זעק', now: 'יעצט:',
-    step_pickup: 'אפגעגעבן', step_washing: 'ווערט געוואשן', step_return: 'געוואשן', step_delivered: 'צוריקגעברענגט',
-    stage_pickup: 'ווארט אויף א דרייווער עס אפצונעמען', stage_washing: 'אפגענומען — ווערט געוואשן', stage_return: 'געוואשן — ווארט צו ווערן צוריקגעברענגט', stage_delivered: 'צוריקגעברענגט',
-    stage_attention: 'די אפיס קוקט נאך די ארדער', stage_cancelled: 'אפגעשטעלט',
-    errFirst: 'ביטע שרייבט אריין אייער ערשטע נאמען.', errLast: 'ביטע שרייבט אריין אייער פאמיליע נאמען.',
-    errPhone: 'ביטע שרייבט אריין א ריכטיגע טעלעפאן נומער.', errIsrael: 'ביטע שרייבט אריין א ריכטיגע טעלעפאן נומער אין ארץ ישראל.',
+    bags: 'וויפיל זעק?', less: 'ווייניגער', more: 'מער', next: 'ווייזט מיינע לעיבלס',
+    previewTitle: 'קוקט איבער אייערע לעיבלס',
+    previewText: (b) => (b === 1 ? 'איר וועט באקומען 1 לעיבל פאר אייער זאק, און 1 קבלה פאר אייך מיט אייער ID נומער.' : `איר וועט באקומען ${b} לעיבלס, איינס פאר יעדן זאק, און 1 קבלה פאר אייך מיט אייער ID נומער.`),
+    receipt: 'אייער קבלה', confirm: 'באשטעטיגן און דרוקן', edit: 'טוישן פרטים', sending: 'שיקט…',
+    doneTitle: 'פארטיג!', printing: 'די לעיבלס ווערן יעצט געדרוקט…',
+    stick: (b) => (b === 1 ? 'קלעפט דעם לעיבל אויף אייער זאק און האלט אן די קבלה.' : 'קלעפט איין לעיבל אויף יעדן זאק און האלט אן די קבלה.'),
+    yourId: 'אייער ID נומער', name: 'נאמען', bagsCount: 'זעק', bagsWord: 'זעק', date: 'דאטום',
+    cancelNote: 'אויב איר נעמט צוריק אייערע זעק צוליב סיי וועלכע סיבה, געדענקט אריינצוגיין מיט אייער ID נומער און עס אפשטעלן.',
+    howLogin: 'אויף דעם טאבלעט: קלייבט אייער שפראך, און דערנאך "איך האב אן ID נומער".',
+    printAgain: 'דרוקט נאכאמאל', finish: 'ענדיגן', resetIn: (s) => `דער סקרין הייבט זיך אן פון אנפאנג אין ${s} סעקונדעס`,
+    lookupTitle: 'איך האב אן ID נומער',
+    idLabel: 'אייער ID נומער (אויף די קבלה)', last4: 'די לעצטע 4 ציפערן פון אייער טעלעפאן נומער', find: 'ווייטער',
+    statusTitle: 'אייער אפגעבונג',
+    state_waiting: 'ווארט אויף אפנעמען', state_picked_up: 'אפגענומען', state_cancelled: 'אפגעשטעלט', state_returned: 'צוריקגעברענגט',
+    waitingNote: 'די זעק זענען נאך נישט אפגענומען. אויב איר נעמט זיי צוריק, שטעלט עס אפ דא.',
+    pickedNote: 'די זעק זענען אפגענומען געווארן. צו טוישן עפעס, ביטע פרעגט אין אפיס.',
+    cancelBtn: 'אפשטעלן מיין אפגעבונג', confirmCancelTitle: 'אפשטעלן די אפגעבונג?', confirmCancelText: 'דער דרייווער וועט נישט קומען נאך די זעק.',
+    yesCancel: 'יא, אפשטעלן', noKeep: 'ניין, לאזן', cancelledMsg: 'אייער אפגעבונג איז אפגעשטעלט געווארן.',
+    errFirst: 'ביטע שרייבט אריין אייער ערשטע נאמען.', errLast: 'ביטע שרייבט אריין אייער פאמיליע נאמען.', errPhone: 'ביטע שרייבט אריין א ריכטיגע טעלעפאן נומער.',
     errBags: (max) => `די צאל זעק מוז זיין פון 1 ביז ${max}.`,
+    errId: 'ביטע שרייבט אריין דעם ID נומער פון אייער קבלה.', errLast4: 'ביטע שרייבט אריין 4 ציפערן.',
+    notFound: 'מיר האבן נישט געטראפן קיין אפגעבונג מיט דעם נומער און די ציפערן. ביטע קוקט איבער און פרובירט נאכאמאל.',
     errServer: 'עפעס איז נישט געגאנגען. פרובירט נאכאמאל, אדער פרעגט אין אפיס.', errOffline: 'נישטא קיין אינטערנעט. פרובירט נאכאמאל אין א מינוט.',
     exitTitle: 'ארויסגיין פון טאבלעט', exitPrompt: 'שרייבט אריין דעם פאסווארט פון טאבלעט אקאונט כדי ארויסצוגיין.', password: 'פאסווארט', exit: 'ארויסגיין', cancel: 'צוריק',
     errPassword: 'פאלשער פאסווארט.',
@@ -125,44 +141,32 @@ export const LABEL_SIZES = {
 };
 
 export const phoneDigits = (p) => String(p ?? '').replace(/\D/g, '');
-const okPhone = (p) => { const d = phoneDigits(p).length; return d >= 7 && d <= 15; };
 const tidy = (s) => String(s ?? '').trim().replace(/\s+/g, ' ');
 
-// New drop-off form. Returns { ok, errors: { first?, last?, phone?, israel?, bags? }, value }.
+// Drop-off form. The phone in Israel is optional and taken as typed.
+// Returns { ok, errors: { first?, last?, phone?, bags? }, value }.
 export function checkDropOff(v, maxBags, lang = 'he') {
   const t = TEXT[lang] || TEXT.he;
   const value = { first: tidy(v.first), middle: tidy(v.middle), last: tidy(v.last),
-    phone: String(v.phone ?? '').trim(), israel: String(v.israel ?? '').trim(), bags: Number(v.bags) };
+    phone: String(v.phone ?? '').trim(), israel: String(v.israel ?? '').trim().slice(0, 30), bags: Number(v.bags) };
   const errors = {};
   if (!value.first || value.first.length > 40) errors.first = t.errFirst;
   if (!value.last || value.last.length > 40) errors.last = t.errLast;
-  if (!okPhone(value.phone)) errors.phone = t.errPhone;
-  if (!okPhone(value.israel)) errors.israel = t.errIsrael;
+  const d = phoneDigits(value.phone).length;
+  if (d < 7 || d > 15) errors.phone = t.errPhone;
   if (!Number.isInteger(value.bags) || value.bags < 1 || value.bags > maxBags) errors.bags = t.errBags(maxBags);
   return { ok: !Object.keys(errors).length, errors, value };
 }
 
-// "Where is my laundry?" form.
-export function checkTrack(v, lang = 'he') {
+// "I have an ID number": the ID (order number, "K-" optional) and the last 4 digits of a phone.
+export function checkLookup(v, lang = 'he') {
   const t = TEXT[lang] || TEXT.he;
-  const value = { phone: String(v.phone ?? '').trim(), first: tidy(v.first) };
+  const id = phoneDigits(v.id);
+  const last4 = phoneDigits(v.last4);
   const errors = {};
-  if (!okPhone(value.phone)) errors.phone = t.errPhone;
-  if (!value.first) errors.first = t.errFirst;
-  return { ok: !Object.keys(errors).length, errors, value };
-}
-
-// The four steps a meshulach sees, from the detailed order status.
-export const STAGES = ['pickup', 'washing', 'return', 'delivered'];
-export function stageOf(status) {
-  switch (status) {
-    case 'requested': case 'scheduled': case 'pickup_in_progress': return 'pickup';
-    case 'awaiting_dropoff': case 'awaiting_washing': case 'washing_in_progress': return 'washing';
-    case 'ready_for_return': case 'return_collection_in_progress': case 'out_for_delivery': return 'return';
-    case 'completed': return 'delivered';
-    case 'cancelled': return 'cancelled';
-    default: return 'attention';
-  }
+  if (!id || id.length > 9) errors.id = t.errId;
+  if (last4.length !== 4) errors.last4 = t.errLast4;
+  return { ok: !Object.keys(errors).length, errors, value: { id: id ? Number(id) : null, last4 } };
 }
 
 // One label per bag: [{ index: 1, of: 3 }, …]
