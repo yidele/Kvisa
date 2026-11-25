@@ -96,6 +96,9 @@ def main():
                 check(f'page renders: {name}', False, f'{e} {errors[:3]}')
             page.screenshot(path=str(SHOTS / f'{name}.png'), full_page=False)
 
+        check('office app keeps its own K mark (the tablet logo is only in the tablet app)',
+              page.inner_text('.sidebar .brand .logo').strip() == 'K' and page.query_selector('.sidebar img') is None)
+
         # dispatcher: Dispatch button and modal showing the masked route
         page.goto(f'{base}/index.html#/dispatch'); wait_page(page)
         dt = page.inner_text('main')

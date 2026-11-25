@@ -1,6 +1,7 @@
 // Tablet app (tablet/index.html): sign in once, then the walk-up screen fills the window.
 // Works with a Tablet account, or with an administrator/dispatcher account for trying it out.
 import { sb, state, roles, loadContext } from './lib/api.js';
+import { brandLogo } from './lib/app.js';
 import { html, setHtml, $, on } from './lib/dom.js';
 import { errorState } from './components/ui.js';
 
@@ -23,7 +24,7 @@ function message(title, text) {
 async function showSignIn() {
   stop();
   const mod = await import('./pages/login.js');
-  mod.render(document.body);
+  mod.render(document.body, { brand: brandLogo('brand-logo', 'Kvisa') });
 }
 
 async function start() {

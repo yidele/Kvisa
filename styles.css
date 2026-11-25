@@ -30,7 +30,6 @@ h1 { font-size: 1.45rem; } h2 { font-size: 1.1rem; } h3 { font-size: 1rem; }
 p { margin: .25rem 0 .75rem; }
 /* the organization's logo (see-through PNGs: navy, and white for dark mode) */
 .brand-pic { display: contents; }
-.brand-mark { height: 30px; width: auto; display: block; }
 .brand-logo { width: 200px; max-width: 70%; height: auto; display: block; margin: 0 auto; }
 code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
 small { font-size: .85em; }

@@ -3,17 +3,17 @@ import { sb } from '../lib/api.js';
 import { html, setHtml, $, on, formValues } from '../lib/dom.js';
 import { friendlyError } from '../lib/format.js';
 import { APP_NAME } from '../config.js';
-import { brandLogo } from '../lib/app.js';
 
 const redirectUrl = () => location.origin + location.pathname;
 
-export function render(container) {
+// brand: what to show at the top (the tablet app passes its logo); the main app shows its K mark.
+export function render(container, { brand } = {}) {
   let mode = 'signin';
   const draw = (msg, kind = 'error') => {
     setHtml(container, html`
       <div class="auth-wrap">
         <div class="card auth-card">
-          <div class="brand brand-lg">${brandLogo('brand-logo', APP_NAME)}</div>
+          <div class="brand brand-lg">${brand || html`<span class="logo" aria-hidden="true">K</span><span>${APP_NAME}</span>`}</div>
           <div class="tabs" role="tablist">
             <button role="tab" class="tab ${mode === 'signin' ? 'active' : ''}" data-mode="signin" aria-selected="${mode === 'signin'}">Sign in</button>
             <button role="tab" class="tab ${mode === 'signup' ? 'active' : ''}" data-mode="signup" aria-selected="${mode === 'signup'}">Create account</button>
