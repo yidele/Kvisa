@@ -28,6 +28,11 @@ a:hover { text-decoration: underline; }
 h1, h2, h3 { line-height: 1.25; margin: 0 0 .5rem; }
 h1 { font-size: 1.45rem; } h2 { font-size: 1.1rem; } h3 { font-size: 1rem; }
 p { margin: .25rem 0 .75rem; }
+/* the organization's logo (dark navy artwork): sits on a white chip in dark mode so it stays readable */
+.brand-img { display: block; }
+.brand-mark { height: 30px; width: auto; }
+.brand-logo { width: 220px; max-width: 70%; height: auto; margin: 0 auto; }
+@media (prefers-color-scheme: dark) { .brand-img { background: #fff; border-radius: 10px; padding: 4px 8px; } }
 code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
 small { font-size: .85em; }
 .muted { color: var(--muted); }
@@ -387,7 +392,8 @@ body.kiosk-mode { overscroll-behavior: none; }
   background: radial-gradient(circle at 15% 0%, var(--accent-soft), transparent 45%), radial-gradient(circle at 100% 100%, var(--wait-soft), transparent 40%), var(--bg); }
 .kiosk-screen { flex: 1; display: flex; flex-direction: column; }
 .kiosk-head { display: flex; align-items: center; gap: .75rem; padding: .75rem 1.25rem; background: var(--surface); border-bottom: 1px solid var(--border); }
-.kiosk-logo { border: 0; width: 44px; height: 44px; font-size: 1.2rem; cursor: default; -webkit-tap-highlight-color: transparent; }
+.kiosk-logo { border: 0; background: none; padding: 0; height: 44px; cursor: default; -webkit-tap-highlight-color: transparent; }
+.kiosk-logo img { height: 44px; width: auto; display: block; }
 .kiosk-org { font-weight: 700; font-size: 1.15rem; flex: 1; }
 .kiosk-back { min-height: 48px; font-size: 1.05rem; padding: .4rem 1.1rem; }
 .kiosk-body { flex: 1; display: grid; place-items: center; padding: 1.25rem 16px 2rem; }
@@ -398,7 +404,7 @@ body.kiosk-mode { overscroll-behavior: none; }
 /* welcome */
 .kiosk-welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem 16px; gap: .5rem; }
 .kiosk-brand { border: 0; background: none; padding: 0; cursor: default; -webkit-tap-highlight-color: transparent; }
-.kiosk-mark { width: 150px; height: 150px; filter: drop-shadow(0 10px 24px rgba(31, 95, 174, .3)); }
+.kiosk-mark { width: 340px; max-width: 80vw; height: auto; display: block; }
 .kiosk-welcome-name { font-size: 2.6rem; margin: .75rem 0 0; }
 .kiosk-taglines { display: flex; flex-direction: column; gap: .15rem; color: var(--text-2); font-size: 1.15rem; margin-bottom: 1.75rem; }
 .kiosk-langs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; width: 100%; max-width: 720px; }

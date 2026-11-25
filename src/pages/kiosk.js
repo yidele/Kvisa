@@ -7,6 +7,7 @@ import { html, raw, setHtml, $, on } from '../lib/dom.js';
 import { orderNo, fmtDate, friendlyError } from '../lib/format.js';
 import { TEXT, LANGS, LABEL_SIZES, checkDropOff, checkLookup, labelPages } from '../lib/kiosk.js';
 import { APP_NAME } from '../config.js';
+import { LOGO, LOGO_MARK } from '../lib/app.js';
 
 // Seconds without a touch before a screen goes back to the welcome screen.
 const IDLE = { info: 60, form: 120, preview: 120, lookup: 90, status: 90 };
@@ -16,13 +17,6 @@ const newKey = () => (crypto.randomUUID ? crypto.randomUUID()
   : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
 const blankForm = () => ({ first: '', middle: '', last: '', phone: '', israel: '', bags: 1 });
 
-const BRAND = raw(`<svg class="kiosk-mark" viewBox="0 0 120 120" aria-hidden="true">
-  <rect x="4" y="4" width="112" height="112" rx="28" fill="#1f5fae"/>
-  <circle cx="60" cy="64" r="34" fill="#ffffff" opacity=".14"/>
-  <circle cx="60" cy="64" r="24" fill="none" stroke="#ffffff" stroke-width="5" opacity=".55"/>
-  <text x="60" y="80" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="50" fill="#ffffff">K</text>
-  <circle cx="92" cy="26" r="7" fill="#ffffff" opacity=".8"/><circle cx="102" cy="42" r="4" fill="#ffffff" opacity=".6"/>
-  <circle cx="24" cy="98" r="5" fill="#ffffff" opacity=".5"/></svg>`);
 const ICON_ID = raw('<svg class="kiosk-ic sm" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="11" width="36" height="26" rx="4"/><path d="M13 20h10M13 27h16M33 20h2"/></svg>');
 
 // Leaving the screen (5 taps on the logo) asks for the signed-in account's password, then signs out.
@@ -59,7 +53,7 @@ export function render(container) {
 
   // ---------------- screens ----------------
   const head = (backTo) => html`<header class="kiosk-head">
-    <button type="button" class="logo kiosk-logo" data-k="logo" aria-label="${org}">K</button>
+    <button type="button" class="kiosk-logo" data-k="logo" aria-label="${org}"><img class="brand-img" src="${LOGO_MARK}" alt=""></button>
     <span class="kiosk-org">${org}</span>
     ${backTo ? html`<button type="button" class="btn kiosk-back" data-go="${backTo}">${dir() === 'rtl' ? '→' : '←'} ${t().back}</button>` : ''}
   </header>`;
@@ -78,7 +72,7 @@ export function render(container) {
 
   const screens = {
     welcome: () => html`<div class="kiosk-welcome">
-      <button type="button" class="kiosk-brand" data-k="logo" aria-label="${org}">${BRAND}</button>
+      <button type="button" class="kiosk-brand" data-k="logo" aria-label="${org}"><img class="kiosk-mark brand-img" src="${LOGO}" alt=""></button>
       <h1 class="kiosk-welcome-name">${org}</h1>
       <p class="kiosk-taglines"><span lang="he" dir="rtl">${TEXT.he.tagline}</span><span lang="en" dir="ltr">${TEXT.en.tagline}</span><span lang="yi" dir="rtl">${TEXT.yi.tagline}</span></p>
       <div class="kiosk-langs">${Object.entries(LANGS).map(([k, l]) =>

@@ -3,7 +3,7 @@ import { sb, state, roles, loadContext, loadPeople, loadCategories, rpc, run, se
 import { html, raw, setHtml, $, on } from './lib/dom.js';
 import { toast, loading, errorState } from './components/ui.js';
 import { APP_NAME } from './config.js';
-import { app, icon } from './lib/app.js';
+import { app, icon, LOGO_MARK } from './lib/app.js';
 
 const routes = [
   { path: /^\/?$/, page: () => (roles.staff ? import('./pages/dashboard.js') : import('./pages/mytasks.js')) },
@@ -96,7 +96,7 @@ function renderShell() {
   setHtml(document.body, html`
     <a class="skip" href="#main">Skip to content</a>
     <aside class="sidebar" aria-label="Main navigation">
-      <div class="brand"><span class="logo" aria-hidden="true">K</span><span>${org}</span></div>
+      <div class="brand"><img class="brand-img brand-mark" src="${LOGO_MARK}" alt=""><span>${org}</span></div>
       <nav>${items.map(([p, label, ic]) => html`<a href="#${p}" data-nav="${p}">${icon(ic)}<span>${label}</span></a>`)}</nav>
       <div class="sidebar-foot">
         <a href="#/account" class="me">${ctx.full_name || ctx.email}<small>${ctx.roles.join(', ')}</small></a>

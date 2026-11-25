@@ -210,7 +210,7 @@ def main():
         tab.wait_for_selector('.kiosk-welcome')
         check('a tablet login opening the main app is sent to the tablet app', '/tablet/' in tab.url, tab.url)
         wt = tab.inner_text('.kiosk')
-        check('1 welcome: logo and Hebrew / English / Yiddish', tab.query_selector('.kiosk-mark') is not None and 'Kvisa Test Org' in wt
+        check('1 welcome: logo and Hebrew / English / Yiddish', tab.evaluate("document.querySelector('.kiosk-mark').naturalWidth > 0 && document.querySelector('.kiosk-logo img') === null") and 'Kvisa Test Org' in wt
               and 'עברית' in wt and 'English' in wt and 'אידיש' in wt and tab.query_selector('.sidebar') is None and not terr, terr[:3])
         tab.screenshot(path=str(SHOTS / 'tablet-1-welcome.png'))
         tab.goto(f'{base}/index.html#/settings'); tab.wait_for_url('**/tablet/**'); tab.wait_for_selector('.kiosk-welcome')

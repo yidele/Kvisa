@@ -1,6 +1,10 @@
 // Shared app-level state and icons (kept separate to avoid import cycles).
 import { raw } from './dom.js';
 
+// The organization's logo (assets/ at the site root); resolved from this file so it works from any page.
+export const LOGO = new URL('../../assets/logo.png', import.meta.url).href;
+export const LOGO_MARK = new URL('../../assets/logo-mark.png', import.meta.url).href;
+
 export const app = {
   dirty: false,                 // set by full-page forms with unsaved changes
   setDirty(v) { app.dirty = !!v; },
