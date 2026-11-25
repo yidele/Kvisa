@@ -33,13 +33,12 @@ jobs:
         if: always()
         with: { name: screenshots, path: tests/e2e/screens/ }
 
-  deploy:
+  # Package the site in one job and publish it in the next: publishing in the same job as the
+  # upload sometimes fails with "No artifacts named github-pages" before the upload is visible.
+  package:
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Collect site files (app only — no tests or docs)
@@ -53,5 +52,13 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: _site }
+
+  deploy:
+    needs: package
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
