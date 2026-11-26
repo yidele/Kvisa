@@ -14,6 +14,28 @@ begin
     grant execute on all functions in schema kvisa_tests to authenticated;
     perform kvisa_tests.act_as(null);
 
+    -- A stand-in for the main app (Nekius Dispatch), so the tests never touch the real one.
+    -- Everything here, including the swapped function, is rolled back at the end.
+    create table kvisa_tests.main_requests (key uuid primary key, id bigint generated always as identity, status text not null default 'open');
+    create table kvisa_tests.main_down (down boolean);
+    create or replace function public._main_app(p_fn text, p_args jsonb)
+    returns jsonb language plpgsql security definer set search_path = public, kvisa_tests as $f$
+    declare r record;
+    begin
+      if exists (select 1 from kvisa_tests.main_down) then raise exception 'KVISA_MAIN_APP: could not reach the dispatch system (test)'; end if;
+      if p_fn = 'tablet_request' then
+        insert into kvisa_tests.main_requests (key) values ((p_args->>'p_key')::uuid) on conflict (key) do nothing;
+      end if;
+      select * into r from kvisa_tests.main_requests where key = (p_args->>'p_key')::uuid;
+      if not found then return null; end if;
+      if p_fn = 'tablet_cancel' then
+        if r.status not in ('open','assigned','posted_pickup','not_covered','cancelled') then raise exception 'TABLET_PICKED_UP: already picked up'; end if;
+        update kvisa_tests.main_requests set status = 'cancelled' where key = r.key;
+        return jsonb_build_object('request_id', r.id, 'status', 'cancelled');
+      end if;
+      return jsonb_build_object('request_id', r.id, 'status', r.status);
+    end $f$;
+
     insert into public.client_categories (id, label, default_pickup_address) values ('zz_kiosk', 'ZZ Kiosk', '1 Guest House Lane');
     update public.organization_settings set kiosk_category_id = 'zz_kiosk', kiosk_max_bags = 10 where id = 1;
     insert into public.people (full_name) values ('K Driver') returning id into p_drv;
@@ -40,6 +62,10 @@ begin
            and pickup_address = '1 Guest House Lane' and notes like '%052-123-4567%' from public.orders where client_id = v_client)
       and (select count(*) from public.order_tasks t join public.orders o on o.id = t.order_id where o.client_id = v_client) = 5
       and not (v_json->>'returning')::boolean, v_json::text);
+    res := res || kvisa_tests.t('K15 The drop-off became an Open request in the main app, and Kvisa remembers its number',
+      (select status from kvisa_tests.main_requests where key = v_key) = 'open'
+      and (select main_request_id from public.orders where client_id = v_client)
+          = (select id from kvisa_tests.main_requests where key = v_key));
     res := res || kvisa_tests.t('K1 Staff are notified of a tablet request',
       exists (select 1 from public.notifications where user_id = u_disp and kind = 'kiosk_request'
               and title like '%K-' || (v_json->>'order_no') || '%'));
@@ -122,16 +148,20 @@ begin
                       where o.order_no = (v_json->>'order_no')::bigint and t.status <> 'cancelled')
       and exists (select 1 from public.notifications where user_id = u_disp and title like 'Tablet request cancelled%'), v_json2::text);
     perform kvisa_tests.act_as(u_k);
-    v_ok := (public.kiosk_lookup((v_json->>'order_no')::bigint, '0101')->>'state') = 'cancelled';
-    begin perform public.kiosk_cancel((v_json->>'order_no')::bigint, '0101'); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%can no longer be cancelled%'; end;
-    res := res || kvisa_tests.t('K13 A cancelled drop-off shows as cancelled and cannot be cancelled twice', v_ok);
+    v_json2 := public.kiosk_lookup((v_json->>'order_no')::bigint, '0101');
+    v_ok := v_json2->>'state' = 'cancelled' and not (v_json2->>'can_cancel')::boolean
+        and (public.kiosk_cancel((v_json->>'order_no')::bigint, '0101')->>'state') = 'cancelled';
+    perform kvisa_tests.act_as(null);
+    res := res || kvisa_tests.t('K13 A cancelled drop-off shows as cancelled (no cancel button); a second cancel changes nothing',
+      v_ok and (select status from kvisa_tests.main_requests where key = v_key) = 'cancelled'
+      and (select count(*) from public.notifications where user_id = u_disp and title like 'Tablet request cancelled%') = 1);
+    perform kvisa_tests.act_as(u_k);
 
-    -- once the driver has started the pickup it can no longer be cancelled from the tablet
+    -- once the main app shows the bags picked up, it can no longer be cancelled from the tablet
     perform kvisa_tests.act_as(null);
     select o.order_no into v_no from public.orders o where o.client_id = v_client and o.status = 'requested' order by o.created_at limit 1;
-    perform set_config('kvisa.rpc', 'on', true);
-    update public.order_tasks set status = 'in_progress', started_at = now()
-     where task_type = 'pickup' and order_id = (select id from public.orders where order_no = v_no);
+    update kvisa_tests.main_requests set status = 'delivered'
+     where key = (select request_key from public.orders where order_no = v_no);
     perform kvisa_tests.act_as(u_k);
     v_json2 := public.kiosk_lookup(v_no, '0199');
     v_ok := v_json2->>'state' = 'picked_up' and not (v_json2->>'can_cancel')::boolean;
@@ -143,6 +173,18 @@ begin
     begin perform public.kiosk_lookup(v_no, '0199'); exception when others then v_ok := sqlerrm like '%KVISA_FORBIDDEN%'; end;
     begin perform public.kiosk_cancel(v_no, '0199'); v_ok := false; exception when others then v_ok := v_ok and sqlerrm like '%KVISA_FORBIDDEN%'; end;
     res := res || kvisa_tests.t('K14 Only the tablet (or staff) can look up or cancel', v_ok);
+
+    -- ---- main app unreachable: nothing is saved, and the tablet is asked to try again ----
+    perform kvisa_tests.act_as(null);
+    insert into kvisa_tests.main_down values (true);
+    perform kvisa_tests.act_as(u_k);
+    v_ok := false;
+    begin perform public.kiosk_submit('Down', '', 'Test', '0526666666', '', 1, gen_random_uuid());
+    exception when others then v_ok := sqlerrm like 'KVISA_MAIN_APP%'; end;
+    perform kvisa_tests.act_as(null);
+    res := res || kvisa_tests.t('K16 If the main app cannot be reached, nothing is saved and the tablet is told',
+      v_ok and not exists (select 1 from public.clients where phone = '0526666666'));
+    delete from kvisa_tests.main_down;
 
     -- ---- the tablet login can do nothing else ----
     perform kvisa_tests.act_as(u_k);

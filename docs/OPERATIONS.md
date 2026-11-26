@@ -112,6 +112,12 @@ App updates reach the tablet by themselves: within about a minute of a new versi
 reloads the next time it is on the welcome screen. The setup file only needs running again if the login changes.
 Every tablet request appears in the Dispatcher as a normal *Requested* order and in the bell as "New tablet request".
 
+### Link to the main app (Nekius Dispatch)
+Tablet drop-offs become Open requests in the main app. The main app's side is in `supabase/main-app/001_tablet_bridge.sql`
+(applied to project `icghbewmvapvrxmwxlyg`); Kvisa's side is migration 014. The shared secret is stored in Kvisa's vault as
+`main_app_tablet_secret`; the main app's `tablet_bridge` table holds only its hash. To change the secret, set a new one in
+both places. If the main app is unreachable, the tablet shows "try again" and nothing is saved.
+
 ## 9. Notifications
 
 In-app notifications (the bell) are live. Email/SMS are **not** connected; nothing is sent outside the app.
