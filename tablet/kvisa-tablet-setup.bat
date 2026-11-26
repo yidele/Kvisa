@@ -38,7 +38,7 @@ set "ARGS=--kiosk --kiosk-printing --no-first-run --disable-pinch --overscroll-h
 set "STARTUP=%AppData%\Microsoft\Windows\Start Menu\Programs\Startup"
 
 :: Shortcut that starts the tablet app at sign-in, and one on the desktop
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$w = New-Object -ComObject WScript.Shell; foreach ($p in @('%STARTUP%\Kvisa Tablet.lnk', [Environment]::GetFolderPath('Desktop') + '\Kvisa Tablet.lnk')) { $s = $w.CreateShortcut($p); $s.TargetPath = '%BROWSER%'; $s.Arguments = '%ARGS%'; $s.Save() }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$w = New-Object -ComObject WScript.Shell; $desk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Kvisa Tablet.lnk'; foreach ($p in @('%STARTUP%\Kvisa Tablet.lnk', $desk)) { $s = $w.CreateShortcut($p); $s.TargetPath = '%BROWSER%'; $s.Arguments = '%ARGS%'; $s.Save() }"
 if errorlevel 1 (
   echo  Could not create the shortcuts.
   pause
