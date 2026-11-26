@@ -402,7 +402,7 @@ body.kiosk-mode { overscroll-behavior: none; background: #f3f4fa; }
 .kiosk-head { display: flex; align-items: center; gap: .9rem; padding: .7rem 1.25rem; background: var(--brand); color: #fff; }
 .kiosk-logo { border: 0; background: none; padding: 0; cursor: default; -webkit-tap-highlight-color: transparent; }
 .kiosk-logo img { height: 40px; width: auto; display: block; }
-.kiosk-org { font-weight: 700; font-size: 1.1rem; flex: 1; opacity: .9; }
+.kiosk-head .kiosk-back { margin-inline-start: auto; }
 .kiosk-back { min-height: 48px; font-size: 1.05rem; padding: .4rem 1.1rem; background: transparent; color: #fff; border-color: rgba(255,255,255,.55); }
 .kiosk-back:hover { background: rgba(255,255,255,.12); }
 .kiosk-body { flex: 1; display: grid; place-items: center; padding: 1.25rem 16px 2rem; }
@@ -427,9 +427,8 @@ body.kiosk-mode { overscroll-behavior: none; background: #f3f4fa; }
 .kiosk-welcome { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem 16px; gap: .5rem; }
 .kiosk-brand { border: 0; background: none; padding: 0; cursor: default; -webkit-tap-highlight-color: transparent; }
 .kiosk-mark { width: 440px; max-width: 82vw; height: auto; display: block; filter: drop-shadow(0 12px 30px rgba(0, 0, 0, .25)); }
-.kiosk .kiosk-welcome-name { font-size: 1.6rem; margin: 1.25rem 0 0; color: rgba(255,255,255,.92); font-weight: 600; }
 .kiosk-taglines { display: flex; flex-direction: column; gap: .15rem; color: rgba(255,255,255,.75); font-size: 1.15rem; margin-bottom: 2rem; }
-.kiosk-langs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; width: 100%; max-width: 720px; }
+.kiosk-langs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; width: 100%; max-width: 720px; margin-top: 2.5rem; }
 .kiosk-lang-btn { min-height: 110px; border-radius: 18px; border: 0; background: #fff; color: var(--brand);
   font: 700 1.9rem/1.2 var(--font); cursor: pointer; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
 

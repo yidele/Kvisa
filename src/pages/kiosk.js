@@ -69,7 +69,6 @@ export function render(container) {
   // ---------------- screens ----------------
   const head = (backTo) => html`<header class="kiosk-head">
     <button type="button" class="kiosk-logo" data-k="logo" aria-label="${org}"><img src="${LOGO_WHITE}" alt=""></button>
-    <span class="kiosk-org">${org}</span>
     ${backTo ? html`<button type="button" class="btn kiosk-back" data-go="${backTo}">${dir() === 'rtl' ? '→' : '←'} ${t().back}</button>` : ''}
   </header>`;
   const err = (k) => (errors[k] ? html`<small class="kiosk-err" id="err-${k}">${errors[k]}</small>` : '');
@@ -88,7 +87,6 @@ export function render(container) {
   const screens = {
     welcome: () => html`${BUBBLES_HTML}<div class="kiosk-welcome">
       <button type="button" class="kiosk-brand" data-k="logo" aria-label="${org}"><img class="kiosk-mark" src="${LOGO_FULL_WHITE}" alt=""></button>
-      <h1 class="kiosk-welcome-name">${org}</h1>
       <div class="kiosk-langs">${Object.entries(LANGS).map(([k, l]) =>
         html`<button type="button" class="kiosk-lang-btn" data-lang="${k}" lang="${k}" dir="${l.dir}">${l.name}</button>`)}</div>
     </div>`,
