@@ -522,6 +522,7 @@ body.kiosk-mode .modal-overlay { font-size: 18px; }
 .k-label[data-size="letter"] { --s: 1.9; width: 8.5in; height: 11in; padding: .75in; }
 .k-label-put { font-size: calc(17pt * var(--s)); font-weight: 700; line-height: 1.25; }
 .k-label-no { font-size: calc(66pt * var(--s)); font-weight: 800; line-height: 1; }
+.k-label-call { font-size: calc(17pt * var(--s)); font-weight: 700; margin-top: calc(6pt * var(--s)); }
 .k-label-foot { border-top: calc(2pt * var(--s)) solid #000; padding-top: calc(6pt * var(--s)); font-size: calc(17pt * var(--s)); font-weight: 700; }
 /* the receipt the person keeps */
 .k-label.receipt { page: receipt; justify-content: flex-start; outline: calc(4px * var(--s)) solid #000; outline-offset: calc(-10px * var(--s)); }

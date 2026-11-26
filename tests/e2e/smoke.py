@@ -297,6 +297,8 @@ def run_all():
         a = rpcs('kiosk_submit')[-1]['args'] if rpcs('kiosk_submit') else {}
         check('5 Confirm sends the details once', len(rpcs('kiosk_submit')) == 1 and a.get('p_first') == 'Moshe' and a.get('p_last') == 'Levi'
               and a.get('p_phone') == '718-555-0101' and a.get('p_israel_phone') == '12' and a.get('p_bags') == 3 and len(a.get('p_request_key', '')) == 36, a)
+        check('5 bag labels show the organization phone, not the client phone', '845-885-8472' in tab.inner_text('#kiosk-print .k-label.bag')
+              and '718-555-0101' not in tab.inner_text('#kiosk-print .k-label.bag'))
         check('5 prints one label per bag plus the receipt', tab.evaluate('window.__prints') == 1 and len(tab.query_selector_all('#kiosk-print .k-label')) == 4
               and len(tab.query_selector_all('#kiosk-print .k-label.receipt')) == 1 and 'ID 1015' in tab.inner_text('#kiosk-print .receipt'))
         check('5 the completed page shows the printed labels with the real ID', len(tab.query_selector_all('.kiosk-summary .k-mini')) == 4

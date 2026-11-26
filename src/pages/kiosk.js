@@ -239,7 +239,8 @@ export function render(container) {
     setHtml(printArea, html`${labelPages(r.bags).map((p) => html`<div class="k-label bag" data-size="${labelSize}">
       <div class="k-label-put">${also(TEXT.en.labelPut, tl.labelPut)}</div>
       <div class="k-label-no">${orderNo(r.order_no)}</div>
-      <div class="k-label-foot">${also(TEXT.en.bagOf(p.index, p.of), tl.bagOf(p.index, p.of))}</div>
+      <div><div class="k-label-foot">${also(TEXT.en.bagOf(p.index, p.of), tl.bagOf(p.index, p.of))}</div>
+        ${s.org_phone ? html`<div class="k-label-call" dir="ltr">${org} · ${s.org_phone}</div>` : ''}</div>
     </div>`)}<div class="k-label receipt" data-size="${labelSize}" dir="${LANGS[lang].dir}" lang="${lang}">
       <div class="k-label-title">${tl.receiptTitle}</div>
       <div class="k-label-no" dir="ltr">ID ${r.order_no}</div>

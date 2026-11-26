@@ -13,7 +13,7 @@
     P('00000000-0000-0000-0000-0000000000c3', 'Chaim Both', ['driver', 'washer']),
   ];
   const settings = {
-    id: 1, org_name: 'Kvisa Test Org', org_phone: null, org_email: null, org_address: null, time_zone: 'America/New_York',
+    id: 1, org_name: 'Kvisa Test Org', org_phone: '845-885-8472', org_email: null, org_address: null, time_zone: 'America/New_York',
     planning_window_days: 28, default_pickup_time: '10:00:00', default_wash_days: 2, default_return_days: 3,
     min_minutes_between_tasks: 30, flag_collection_vs_expected: true, require_discrepancy_resolution: true,
     overdue_grace_minutes: 60, upcoming_notice_hours: 12,
