@@ -96,7 +96,7 @@
       exceptions: [{ order_no: 1001, kind: 'bag_discrepancy', status: 'open', description: 'x', expected: 4, actual: 3, reported_at: iso(-4), resolution: null }],
       recurring: [{ client: 'Cohen Family', status: 'active', occurrences: 4, completed: 2, cancelled_or_skipped: 1, open: 1 }] },
     my_tasks: [{ task_id: tasks[3].id, order_id: O, order_no: 1001, task_type: 'return_collection', task_status: 'pending', order_status: 'ready_for_return',
-      scheduled_at: iso(2), started_at: null, completed_at: null, from_address: '2 Wash Ave', to_address: '9 Other St', expected_bags: 3, actual_bags: null,
+      scheduled_at: iso(0), started_at: null, completed_at: null, from_address: '2 Wash Ave', to_address: '9 Other St', expected_bags: 3, actual_bags: null,
       contact_name: 'Bracha Washer', contact_phone: '718-555-0102', other_party_name: 'Grandma Cohen', other_party_phone: null, client_label: 'Cohen (K-1001)',
       instructions: null, bag_notes: 'Blue bags', washing_received: false, can_act: true, open_problems: 0 }],
     record_handoff: { event_id: 'e9', exception_id: null, order_status: 'out_for_delivery' },

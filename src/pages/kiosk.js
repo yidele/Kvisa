@@ -130,6 +130,10 @@ export function render(container) {
       <h1>${t().doneTitle}</h1>
       <p class="kiosk-printing"><span class="spinner"></span>${t().printing}</p>
       <p class="kiosk-sub">${t().stick(result.bags)}</p>
+      <div class="kiosk-minis" dir="ltr">
+        ${labelPages(result.bags).map((p) => miniBag(orderNo(result.order_no), result.name, p))}
+        ${miniReceipt(result.order_no, result.name, result.bags)}
+      </div>
       <p class="kiosk-sub">${t().yourId}</p>
       <div class="kiosk-orderno" dir="ltr">${result.order_no}</div>
       <dl class="kiosk-info">

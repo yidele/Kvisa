@@ -259,6 +259,8 @@ def main():
               and a.get('p_phone') == '718-555-0101' and a.get('p_israel_phone') == '12' and a.get('p_bags') == 3 and len(a.get('p_request_key', '')) == 36, a)
         check('5 prints one label per bag plus the receipt', tab.evaluate('window.__prints') == 1 and len(tab.query_selector_all('#kiosk-print .k-label')) == 4
               and len(tab.query_selector_all('#kiosk-print .k-label.receipt')) == 1 and 'ID 1015' in tab.inner_text('#kiosk-print .receipt'))
+        check('5 the completed page shows the printed labels with the real ID', len(tab.query_selector_all('.kiosk-summary .k-mini')) == 4
+              and 'K-1015' in tab.inner_text('.kiosk-summary .kiosk-minis') and 'ID 1015' in tab.inner_text('.kiosk-summary .k-mini.receipt'))
         st = tab.inner_text('.kiosk-summary')
         check('5 completed page shows the ID, details and how to cancel', all(x in st for x in
               ['Completed!', '1015', 'Moshe <b>Levi</b>', '718-555-0101', '052-123-4567', 'taking your bags back', 'I have an ID number']), st)
