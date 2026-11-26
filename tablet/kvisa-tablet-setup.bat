@@ -52,7 +52,12 @@ for %%K in ("HKLM\SOFTWARE\Policies\Google\Chrome" "HKLM\SOFTWARE\Policies\Micro
   reg add %%K /v PasswordManagerEnabled /t REG_DWORD /d 0 /f >nul
   reg add %%K /v TranslateEnabled /t REG_DWORD /d 0 /f >nul
   reg add %%K /v DeveloperToolsAvailability /t REG_DWORD /d 2 /f >nul
+  reg add %%K /v BackgroundModeEnabled /t REG_DWORD /d 0 /f >nul
 )
+:: Edge: no startup boost (a browser already running in the background would ignore silent printing)
+:: and no first-run welcome pages
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v StartupBoostEnabled /t REG_DWORD /d 0 /f >nul
+reg add "HKLM\SOFTWARE\Policies\Microsoft\Edge" /v HideFirstRunExperience /t REG_DWORD /d 1 /f >nul
 
 :: No swipes from the screen edges (Start menu, task view, notifications)
 reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\EdgeUI" /v AllowEdgeSwipe /t REG_DWORD /d 0 /f >nul
@@ -64,7 +69,7 @@ echo.
 echo  Done.
 echo  1. Make the label printer the DEFAULT printer:
 echo     Settings ^> Bluetooth ^& devices ^> Printers ^& scanners ^> your printer ^> Set as default.
-echo  2. Close every browser window, then restart the tablet.
+echo  2. Restart the tablet (closing the browser is not enough).
 echo     The Kvisa tablet app opens full screen, and labels print with no window.
 echo.
 pause

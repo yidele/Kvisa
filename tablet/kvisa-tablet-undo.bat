@@ -9,7 +9,7 @@ if errorlevel 1 (
 del "%AppData%\Microsoft\Windows\Start Menu\Programs\Startup\Kvisa Tablet.lnk" 2>nul
 powershell -NoProfile -Command "Remove-Item ([Environment]::GetFolderPath('Desktop') + '\Kvisa Tablet.lnk') -ErrorAction SilentlyContinue"
 for %%K in ("HKLM\SOFTWARE\Policies\Google\Chrome" "HKLM\SOFTWARE\Policies\Microsoft\Edge") do (
-  for %%V in (PrintPreviewUseSystemDefaultPrinter PrintHeaderFooter PasswordManagerEnabled TranslateEnabled DeveloperToolsAvailability) do reg delete %%K /v %%V /f >nul 2>&1
+  for %%V in (PrintPreviewUseSystemDefaultPrinter PrintHeaderFooter PasswordManagerEnabled TranslateEnabled DeveloperToolsAvailability BackgroundModeEnabled StartupBoostEnabled HideFirstRunExperience) do reg delete %%K /v %%V /f >nul 2>&1
 )
 reg delete "HKLM\SOFTWARE\Policies\Microsoft\Windows\EdgeUI" /v AllowEdgeSwipe /f >nul 2>&1
 echo  Undone. Restart the tablet.
