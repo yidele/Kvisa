@@ -49,6 +49,10 @@ jobs:
           cp -r tablet _site/
           cp -r assets _site/
           touch _site/.nojekyll
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Stamp file URLs with this version (the tablet reloads itself when it changes)
+        run: node tools/stamp-version.mjs _site "${GITHUB_SHA::12}"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: _site }

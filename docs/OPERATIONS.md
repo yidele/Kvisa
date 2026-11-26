@@ -108,6 +108,8 @@ without first disabling those triggers. Do that only during a documented restore
 7. **To leave tablet mode:** tap the **K** logo 5 times and type the tablet account's password.
 
 Settings → Tablet shows the tablet app's address and an *Open the tablet app* button.
+App updates reach the tablet by themselves: within about a minute of a new version being published, the tablet
+reloads the next time it is on the welcome screen. The setup file only needs running again if the login changes.
 Every tablet request appears in the Dispatcher as a normal *Requested* order and in the bell as "New tablet request".
 
 ## 9. Notifications

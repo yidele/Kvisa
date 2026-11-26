@@ -73,10 +73,25 @@ def new_page(browser, base, role='admin', logged_out=False, mobile=False):
     page.goto('about:blank')   # force a full reload so the fake picks up the role
     return page, errors
 
+def kfill(pg, sel, text, close=True):
+    """Type into a tablet box the way a person does: tap it, clear it, type (the in-app keyboard filters),
+    then close the keyboard so it doesn't cover the buttons."""
+    pg.click(sel)
+    for _ in range(len(pg.input_value(sel))): pg.keyboard.press('Backspace')
+    pg.keyboard.type(text)
+    if close: pg.keyboard.press('Escape')
+
 def wait_page(page):
     page.wait_for_function("() => { const m = document.querySelector('main .page'); return m && !m.querySelector('.state-loading'); }", timeout=8000)
 
 def main():
+    (ROOT / 'version.txt').write_text('test\n')   # published sites have one (CI writes it); the tablet checks it
+    try:
+        run_all()
+    finally:
+        (ROOT / 'version.txt').unlink(missing_ok=True)
+
+def run_all():
     httpd = serve()
     base = f'http://127.0.0.1:{httpd.server_address[1]}'
     with sync_playwright() as p:
@@ -239,8 +254,33 @@ def main():
         ft = tab.inner_text('form')
         check('3 form asks first, middle (optional), last name, phone here and phone in Israel', all(x in ft for x in
               ['First name', 'Middle name', '(optional)', 'Last name', 'Phone number here (America)', 'Phone number in Israel', 'How many bags?']), ft)
-        tab.fill('input[name=first]', 'Moshe'); tab.fill('input[name=last]', 'Levi')
-        tab.fill('input[name=phone]', '718-555-0101'); tab.fill('input[name=israel]', '12')
+        tab.click('input[name=first]'); tab.wait_for_selector('.kbd:not([hidden])')
+        check('tapping a name box opens the in-app keyboard (English letters on an English screen), never the Windows one',
+              tab.get_attribute('input[name=first]', 'readonly') is not None and tab.get_attribute('input[name=first]', 'inputmode') == 'none'
+              and tab.query_selector('.kbd [data-key="q"]') is not None and tab.query_selector('.kbd [data-key="1"]') is None)
+        for k in ['m', 'o', 's', 'h', 'e']: tab.click(f'.kbd [data-key="{k}"]')
+        tab.click('.kbd [data-key="switch"]')
+        check('the name keyboard switches to Hebrew letters (with ײ װ for Yiddish)', tab.query_selector('.kbd [data-key="א"]') is not None
+              and tab.query_selector('.kbd [data-key="ײ"]') is not None)
+        tab.screenshot(path=str(SHOTS / 'tablet-3-keyboard-letters.png'))
+        tab.click('.kbd [data-key="back"]'); tab.click('.kbd [data-key="switch"]'); tab.click('.kbd [data-key="e"]')
+        check('on-screen keys type, with a capital first letter and working backspace', tab.input_value('input[name=first]') == 'Moshe')
+        check('typing clears that box\'s error message', tab.query_selector('#err-first') is None and tab.query_selector('#err-last') is not None)
+        tab.click('.kbd [data-key="next"]')
+        check('Next moves to the next box', tab.evaluate("document.querySelector('.kbd-target').name") == 'middle')
+        kfill(tab, 'input[name=last]', 'Levi😀7', close=False)
+        check('names refuse emojis and digits', tab.input_value('input[name=last]') == 'Levi')
+        tab.click('input[name=phone]')
+        check('phone keyboard has only digits and + - ( ) space', tab.query_selector('.kbd [data-key="+"]') is not None
+              and tab.query_selector('.kbd [data-key="("]') is not None and tab.query_selector('.kbd [data-key="a"]') is None)
+        tab.wait_for_timeout(200)
+        check('the box being typed in is above the keyboard', tab.evaluate("document.querySelector('.kbd-target').getBoundingClientRect().bottom <= document.querySelector('.kbd').getBoundingClientRect().top"))
+        tab.screenshot(path=str(SHOTS / 'tablet-3-keyboard-phone.png'))
+        kfill(tab, 'input[name=phone]', '718-555-0101abc', close=False)
+        check('phone boxes refuse letters', tab.input_value('input[name=phone]') == '718-555-0101')
+        kfill(tab, 'input[name=israel]', '12', close=False)
+        tab.click('.kbd [data-key="done"]')
+        check('Done closes the keyboard', tab.query_selector('.kbd[hidden]') is not None)
         tab.click('[data-k=more]'); tab.click('[data-k=more]')
         check('3 bag stepper counts up', tab.inner_text('.kiosk-bags').strip() == '3')
         tab.screenshot(path=str(SHOTS / 'tablet-3-form.png'))
@@ -276,10 +316,15 @@ def main():
 
         # I have an ID number → waiting → cancel
         tab.click('[data-lang=en]'); tab.click('[data-go=lookup]'); tab.wait_for_selector('form[data-form=lookup]')
-        tab.fill('input[name=id]', '1016'); tab.fill('input[name=last4]', '0000'); tab.click('.kiosk-submit')
+        kfill(tab, 'input[name=id]', 'K-1016'); kfill(tab, 'input[name=last4]', '0000', close=False)
+        check('ID and last-4 boxes take digits only, and last 4 stops at 4', tab.input_value('input[name=id]') == '1016' and tab.input_value('input[name=last4]') == '0000'
+              and tab.query_selector('.kbd [data-key="+"]') is None)
+        kfill(tab, 'input[name=last4]', '000012', close=False); tab.click('.kbd [data-key="done"]')
+        check('last 4 stops at 4 digits', tab.input_value('input[name=last4]') == '0000')
+        tab.click('.kiosk-submit')
         tab.wait_for_selector('.notice-error')
         check('6 a wrong ID or digits gets a clear message', "didn't find a drop-off" in tab.inner_text('.notice-error'))
-        tab.fill('input[name=id]', 'K-1016'); tab.fill('input[name=last4]', '4567'); tab.click('.kiosk-submit')
+        kfill(tab, 'input[name=id]', '1016'); kfill(tab, 'input[name=last4]', '4567'); tab.click('.kiosk-submit')
         tab.wait_for_selector('.kiosk-status')
         la = rpcs('kiosk_lookup')[-1]['args']
         sv = tab.inner_text('.kiosk-status')
@@ -294,7 +339,7 @@ def main():
               and 'was cancelled' in tab.inner_text('.kiosk-status') and tab.query_selector('.kiosk-cancel') is None)
         tab.screenshot(path=str(SHOTS / 'tablet-6-cancelled.png'))
         tab.click('.kiosk-back'); tab.wait_for_selector('form[data-form=lookup]')
-        tab.fill('input[name=id]', '1009'); tab.fill('input[name=last4]', '4567'); tab.click('.kiosk-submit')
+        kfill(tab, 'input[name=id]', '1009'); kfill(tab, 'input[name=last4]', '4567'); tab.click('.kiosk-submit')
         tab.wait_for_selector('.kiosk-state.picked_up')
         check('6 once picked up there is no cancel button', 'Picked up' in tab.inner_text('.kiosk-status') and tab.query_selector('.kiosk-cancel') is None)
         check('6 status page fits the tablet', no_overflow() and not terr, terr[:3])
@@ -303,7 +348,7 @@ def main():
         # a second person gets a new request key
         tab.click('[data-lang=he]'); tab.click('[data-go=form]'); tab.wait_for_selector('form[data-form=dropoff]')
         check('Hebrew form is right-to-left and starts blank', tab.get_attribute('.kiosk', 'dir') == 'rtl' and tab.input_value('input[name=first]') == '')
-        tab.fill('input[name=first]', 'Dovid'); tab.fill('input[name=last]', 'Klein'); tab.fill('input[name=phone]', '0529999999')
+        kfill(tab, 'input[name=first]', 'Dovid'); kfill(tab, 'input[name=last]', 'Klein'); kfill(tab, 'input[name=phone]', '0529999999')
         tab.click('.kiosk-submit'); tab.click('[data-k=confirm]'); tab.wait_for_selector('.kiosk-summary')
         keys = [w['args']['p_request_key'] for w in rpcs('kiosk_submit')]
         check('each new person gets a new request key', len(keys) == 2 and keys[0] != keys[1], keys)
@@ -333,11 +378,32 @@ def main():
         ok = [fits()]
         sm.click('[data-lang=he]'); sm.wait_for_selector('.kiosk-how'); ok.append(fits())
         sm.click('[data-go=form]'); sm.wait_for_selector('form[data-form=dropoff]'); ok.append(fits())
-        sm.fill('input[name=first]', 'א'); sm.fill('input[name=last]', 'ב'); sm.fill('input[name=phone]', '0529999999')
+        sm.click('input[name=first]'); sm.click('.kbd [data-key="א"]'); sm.click('input[name=last]'); sm.click('.kbd [data-key="ב"]')
+        ok.append(fits())
+        kfill(sm, 'input[name=phone]', '0529999999', close=False); sm.click('.kbd [data-key="next"]'); sm.click('.kbd [data-key="done"]')
         sm.click('[data-k=more]'); sm.click('[data-k=more]'); sm.click('[data-k=more]')
         sm.click('.kiosk-submit'); sm.wait_for_selector('.kiosk-labels'); ok.append(fits())
         check('tablet screens also fit a small screen', all(ok), ok)
         sctx.close()
+
+        # a new version reloads the tablet, but only when nobody is using it
+        vfile = ROOT / 'version.txt'
+        try:
+            vfile.write_text('v1\n')
+            uctx = browser.new_context(viewport={'width': 1280, 'height': 800}, has_touch=True)
+            up = uctx.new_page()
+            up.route('https://cdn.jsdelivr.net/**', lambda r: r.fulfill(status=200, content_type='application/javascript', body=FAKE))
+            up.add_init_script("localStorage.setItem('fakeRole','kiosk'); localStorage.removeItem('fakeLoggedOut'); window.KVISA_UPDATE_CHECK_MS = 250;")
+            up.goto(f'{base}/tablet/'); up.wait_for_selector('.kiosk-welcome'); up.wait_for_timeout(400)
+            up.evaluate('window.__samePage = true')
+            up.click('[data-lang=en]'); up.click('[data-go=form]'); up.wait_for_selector('form[data-form=dropoff]')
+            vfile.write_text('v2\n'); up.wait_for_timeout(1200)
+            check('a new version never reloads while someone is filling in the form', up.evaluate('window.__samePage === true') and up.query_selector('form[data-form=dropoff]') is not None)
+            up.click('.kiosk-back'); up.click('.kiosk-back'); up.wait_for_timeout(1500)
+            check('a new version reloads the tablet once it is back on the welcome screen', up.evaluate('window.__samePage === undefined') and up.query_selector('.kiosk-welcome') is not None)
+            uctx.close()
+        finally:
+            vfile.write_text('test\n')
 
         # the separate tablet app: staff can try it with their own account
         sp, serr = new_page(browser, base)

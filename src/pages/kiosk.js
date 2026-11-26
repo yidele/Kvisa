@@ -8,6 +8,7 @@ import { orderNo, fmtDate, friendlyError } from '../lib/format.js';
 import { TEXT, LANGS, LABEL_SIZES, checkDropOff, checkLookup, labelPages } from '../lib/kiosk.js';
 import { APP_NAME } from '../config.js';
 import { LOGO_WHITE } from '../lib/app.js';
+import { attachKeyboard } from '../components/kioskKeyboard.js';
 
 // Seconds without a touch before a screen goes back to the welcome screen.
 const IDLE = { info: 60, form: 120, preview: 120, lookup: 90, status: 90 };
@@ -16,6 +17,9 @@ const DONE_SECONDS = 60;      // the completed screen counts down visibly, then 
 const newKey = () => (crypto.randomUUID ? crypto.randomUUID()
   : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
 const blankForm = () => ({ first: '', middle: '', last: '', phone: '', israel: '', bags: 1 });
+
+// Boxes typed with the in-app keyboard: read-only to the browser, so the Windows keyboard never opens.
+const KB = Object.fromEntries(['name', 'phone', 'digits'].map((k) => [k, raw(`data-kbd="${k}" readonly inputmode="none"`)]));
 
 const ICON_ID = raw('<svg class="kiosk-ic sm" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="11" width="36" height="26" rx="4"/><path d="M13 20h10M13 27h16M33 20h2"/></svg>');
 
@@ -50,6 +54,7 @@ export function render(container) {
   pageStyle.textContent = `@page { size: ${(LABEL_SIZES[labelSize] || LABEL_SIZES['4x6']).css}; margin: 0; }`;
   document.head.appendChild(pageStyle);
   document.body.classList.add('kiosk-mode');
+  const kb = attachKeyboard(shell, { text: () => TEXT[lang], lettersFor: () => (lang === 'en' ? 'en' : 'he') });
 
   // ---------------- screens ----------------
   const head = (backTo) => html`<header class="kiosk-head">
@@ -91,17 +96,17 @@ export function render(container) {
       ${bannerBox()}
       <div class="kiosk-names">
         <label class="field kiosk-field"><span>${t().first}</span>
-          <input name="first" value="${form.first}" maxlength="40" autocapitalize="words" dir="auto" ${inv('first')}>${err('first')}</label>
+          <input name="first" value="${form.first}" maxlength="40" ${KB.name} dir="auto" ${inv('first')}>${err('first')}</label>
         <label class="field kiosk-field"><span>${t().middle} <small class="muted">${t().optional}</small></span>
-          <input name="middle" value="${form.middle}" maxlength="40" autocapitalize="words" dir="auto"></label>
+          <input name="middle" value="${form.middle}" maxlength="40" ${KB.name} dir="auto"></label>
         <label class="field kiosk-field"><span>${t().last}</span>
-          <input name="last" value="${form.last}" maxlength="40" autocapitalize="words" dir="auto" ${inv('last')}>${err('last')}</label>
+          <input name="last" value="${form.last}" maxlength="40" ${KB.name} dir="auto" ${inv('last')}>${err('last')}</label>
       </div>
       <div class="kiosk-phones">
         <label class="field kiosk-field"><span>${t().phoneHere}</span>
-          <input name="phone" type="tel" inputmode="tel" value="${form.phone}" maxlength="25" dir="ltr" ${inv('phone')}>${err('phone')}</label>
+          <input name="phone" value="${form.phone}" maxlength="25" ${KB.phone} dir="ltr" ${inv('phone')}>${err('phone')}</label>
         <label class="field kiosk-field"><span>${t().phoneIsrael}</span>
-          <input name="israel" type="tel" inputmode="tel" value="${form.israel}" maxlength="30" dir="ltr"></label>
+          <input name="israel" value="${form.israel}" maxlength="30" ${KB.phone} dir="ltr"></label>
       </div>
       <div class="field kiosk-field"><span id="bags-label">${t().bags}</span>
         <div class="kiosk-stepper" role="group" aria-labelledby="bags-label">
@@ -155,9 +160,9 @@ export function render(container) {
       <h1>${t().lookupTitle}</h1>
       ${bannerBox()}
       <label class="field kiosk-field"><span>${t().idLabel}</span>
-        <input name="id" inputmode="numeric" value="${lookupForm.id}" maxlength="12" dir="ltr" ${inv('id')}>${err('id')}</label>
+        <input name="id" value="${lookupForm.id}" maxlength="9" ${KB.digits} dir="ltr" ${inv('id')}>${err('id')}</label>
       <label class="field kiosk-field"><span>${t().last4}</span>
-        <input name="last4" inputmode="numeric" value="${lookupForm.last4}" maxlength="4" dir="ltr" ${inv('last4')}>${err('last4')}</label>
+        <input name="last4" value="${lookupForm.last4}" maxlength="4" ${KB.digits} dir="ltr" ${inv('last4')}>${err('last4')}</label>
       <button type="submit" class="btn btn-primary btn-lg btn-block kiosk-submit" ${busy ? raw('disabled') : ''}>${busy ? t().sending : t().find}</button>
     </form></div>`,
 
@@ -188,12 +193,13 @@ export function render(container) {
     shell.dataset.screen = screen;
     setHtml(body, screens[screen]());
     const first = $('input[aria-invalid=true]', body);
-    if (first) first.focus();
+    if (first) kb.open(first); else kb.refresh();
   }
 
   function go(next) {
     readForms();
     errors = {}; banner = ''; confirmingCancel = false;
+    kb.close();
     if (next === 'welcome') { reset(); return; }
     if (next === 'lookup' && screen !== 'status') { lookupForm = { id: '', last4: '' }; }
     if (next === 'done') doneLeft = DONE_SECONDS;
@@ -212,6 +218,7 @@ export function render(container) {
   }
 
   function reset() {
+    kb.close();
     screen = 'welcome'; lang = 'he';
     form = blankForm(); lookupForm = { id: '', last4: '' }; found = null; confirmingCancel = false;
     result = null; errors = {}; banner = ''; busy = false;
@@ -303,6 +310,7 @@ export function render(container) {
   }
 
   async function exitTablet() {
+    kb.close();
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.setAttribute('dir', 'ltr');   // for the office, always in English
@@ -348,6 +356,13 @@ export function render(container) {
         if (taps.length >= 5) { taps = []; exitTablet(); }
       }
     }),
+    // typing into a box clears its "please type…" message
+    on(container, 'input', 'input[data-kbd]', (e, el) => {
+      if (!errors[el.name]) return;
+      delete errors[el.name];
+      el.removeAttribute('aria-invalid');
+      $(`#err-${el.name}`, body)?.remove();
+    }),
     on(container, 'submit', 'form[data-form]', (e, f) => {
       e.preventDefault();
       if (busy) return;
@@ -379,6 +394,7 @@ export function render(container) {
   return () => {
     clearInterval(timer);
     offs.forEach((off) => off());
+    kb.destroy();
     document.removeEventListener('visibilitychange', keepAwake);
     if (wake) wake.release().catch(() => {});
     pageStyle.remove();

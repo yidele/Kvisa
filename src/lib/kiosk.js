@@ -12,6 +12,7 @@ export const LANGS = {
 export const TEXT = {
   he: {
     tagline: 'מסירת כביסה',
+    kbdNext: 'הבא', kbdDone: 'סיום', kbdSpace: 'רווח',
     back: 'חזרה',
     infoTitle: 'איך זה עובד',
     infoSteps: [
@@ -50,6 +51,7 @@ export const TEXT = {
   },
   en: {
     tagline: 'Laundry drop-off',
+    kbdNext: 'Next', kbdDone: 'Done', kbdSpace: 'space',
     back: 'Back',
     infoTitle: 'How it works',
     infoSteps: [
@@ -88,6 +90,7 @@ export const TEXT = {
   },
   yi: {
     tagline: 'אפגעבן וועש',
+    kbdNext: 'ווייטער', kbdDone: 'פארטיג', kbdSpace: 'שפאציע',
     back: 'צוריק',
     infoTitle: 'ווי אזוי עס ארבעט',
     infoSteps: [
@@ -161,6 +164,36 @@ export function checkLookup(v, lang = 'he') {
   if (!id || id.length > 9) errors.id = t.errId;
   if (last4.length !== 4) errors.last4 = t.errLast4;
   return { ok: !Object.keys(errors).length, errors, value: { id: id ? Number(id) : null, last4 } };
+}
+
+// ---------------------------------------------------------------
+// In-app keyboard: the Windows keyboard never opens; each kind of box gets only the keys it needs.
+// ---------------------------------------------------------------
+export const KBD_ALLOWED = {
+  name: /^[\p{L}\p{M} '\-]$/u,     // letters in any language, space, apostrophe, dash
+  phone: /^[0-9+\-() ]$/,
+  digits: /^[0-9]$/,
+};
+
+export const KBD_LAYOUTS = {
+  phone: [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['+', '0', '-'], ['(', ')', 'space']],
+  digits: [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['0']],
+  en: [['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'], ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+    ['z', 'x', 'c', 'v', 'b', 'n', 'm', "'", '-']],
+  he: [['ק', 'ר', 'א', 'ט', 'ו', 'ן', 'ם', 'פ'], ['ש', 'ד', 'ג', 'כ', 'ע', 'י', 'ח', 'ל', 'ך', 'ף'],
+    ['ז', 'ס', 'ב', 'ה', 'נ', 'מ', 'צ', 'ת', 'ץ'], ['ײ', 'װ', 'ױ', "'", '-']],
+};
+
+// The new value of a box after one key: 'back', 'space' or a character. Characters the box doesn't
+// accept are ignored; names start each word with a capital (English) and never get double spaces.
+export function typeKey(value, key, kind, max = 40) {
+  const v = String(value ?? '');
+  if (key === 'back') return Array.from(v).slice(0, -1).join('');
+  const ch = key === 'space' ? ' ' : key;
+  if (!KBD_ALLOWED[kind]?.test(ch) || Array.from(v).length >= max) return v;
+  if (kind === 'name' && ch === ' ' && (v === '' || v.endsWith(' '))) return v;
+  const wordStart = v === '' || /[ \-']$/.test(v);
+  return v + (kind === 'name' && wordStart && /^[a-z]$/.test(ch) ? ch.toUpperCase() : ch);
 }
 
 // One label per bag: [{ index: 1, of: 3 }, …]

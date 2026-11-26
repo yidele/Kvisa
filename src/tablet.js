@@ -56,6 +56,24 @@ async function start() {
   cleanup = mod.render(document.body);
 }
 
+// New versions: every minute, compare the published version.txt with the one this page started with; when it
+// changed, reload, but only while nobody is using the tablet (welcome screen or sign-in screen).
+const UPDATE_CHECK_MS = window.KVISA_UPDATE_CHECK_MS || 60 * 1000;   // tests shorten it
+let startedVersion = null;
+async function publishedVersion() {
+  try {
+    const r = await fetch(`../version.txt?t=${Date.now()}`, { cache: 'no-store' });
+    return r.ok ? (await r.text()).trim() : null;
+  } catch { return null; }   // offline: try again next time
+}
+publishedVersion().then((v) => { startedVersion = v; });
+setInterval(async () => {
+  const v = await publishedVersion();
+  if (!v || !startedVersion) { startedVersion = startedVersion || v; return; }
+  const idle = document.querySelector('.kiosk[data-screen=welcome]') || document.querySelector('.auth-card');
+  if (v !== startedVersion && idle && !document.querySelector('.modal-overlay')) location.reload();
+}, UPDATE_CHECK_MS);
+
 // Supabase calls must not be awaited inside this callback, so work is deferred with setTimeout.
 sb.auth.onAuthStateChange((event, session) => {
   state.session = session;
