@@ -97,9 +97,12 @@ without first disabling those triggers. Do that only during a documented restore
    It opens straight into the walk-up screen and stays signed in. In Chrome you can install it as an app
    (⋮ menu → *Cast, save and share* → *Install page as app*) so it opens full screen from its own icon.
    To try it before making a tablet account, sign in to the tablet app with your own administrator account.
-5. **Lock the tablet to that page.** Android: install *Fully Kiosk Browser*, set the Kvisa site as the start page and turn
-   on kiosk mode (or use Android *App pinning* with Chrome). iPad: *Settings → Accessibility → Guided Access*.
-   Windows: Chrome with `--kiosk --kiosk-printing` prints labels with no dialog at all.
+5. **Lock the tablet to that page and print without a print window.** On the Windows tablet, download
+   `https://yidele.github.io/Kvisa/tablet/kvisa-tablet-setup.bat`, right-click it → *Run as administrator*.
+   It makes Chrome (or Edge) start full screen on the tablet page at sign-in in silent-printing mode
+   (`--kiosk --kiosk-printing`), turns off edge swipes and the browser's pop-ups, and keeps the chosen default printer.
+   `kvisa-tablet-undo.bat` reverses it. (Windows' own "Set up a kiosk" cannot be used: it starts Edge itself, without
+   silent printing, so a print window would appear.)
 6. **Printer:** connect the label printer to the tablet (Wi-Fi/Bluetooth/USB) and print one test label from the screen.
    On Android and iPad the browser shows a print dialog: tap *Print* once per request.
 7. **To leave tablet mode:** tap the **K** logo 5 times and type the tablet account's password.
