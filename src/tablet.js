@@ -9,6 +9,18 @@ let cleanup = null;
 let starting = false;
 let recovering = false;
 
+// The tablet's shortcut can carry its login after '#' (…/tablet/#login=EMAIL&pw=PASSWORD), so it signs itself in
+// every time it starts: Edge's kiosk mode forgets the login when it closes. The part after '#' is never sent
+// to any server; it is read once and removed from the address.
+const shortcutLogin = (() => {
+  const p = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const email = p.get('login'), password = p.get('pw');
+  if (!email || !password) return null;
+  history.replaceState(null, '', location.pathname + location.search);
+  return { email, password };
+})();
+let triedShortcutLogin = false;
+
 function stop() {
   if (cleanup) { try { cleanup(); } catch { /* ignore */ } cleanup = null; }
 }
@@ -56,7 +68,16 @@ sb.auth.onAuthStateChange((event, session) => {
       return;
     }
     if (recovering) return;
-    if (!session) { state.ctx = null; showSignIn(); return; }
+    if (!session) {
+      state.ctx = null;
+      if (shortcutLogin && !triedShortcutLogin) {
+        triedShortcutLogin = true;
+        const { error } = await sb.auth.signInWithPassword(shortcutLogin);
+        if (!error) return;   // the SIGNED_IN event starts the tablet screen
+      }
+      showSignIn();
+      return;
+    }
     if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && !state.ctx && !starting) {
       starting = true;
       try { await start(); } finally { starting = false; }

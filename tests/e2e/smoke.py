@@ -359,6 +359,10 @@ def main():
         so.click('[data-mode=signup]')
         check('tablet app can create an invited account', so.query_selector('form[data-form=signup] input[name=password2]') is not None)
         so.screenshot(path=str(SHOTS / 'tablet-signin.png'))
+        so.goto('about:blank'); so.goto(f'{base}/tablet/#login=tablet%40test.org&pw=right-password'); so.wait_for_timeout(500)
+        si = so.evaluate('window.__signins || []')
+        check('the tablet shortcut signs itself in, and the login is removed from the address',
+              si and si[0] == {'email': 'tablet@test.org', 'password': 'right-password'} and '#' not in so.url and 'pw=' not in so.url, (si, so.url))
         so.close()
 
         # ---- signed out ----

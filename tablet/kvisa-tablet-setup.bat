@@ -34,8 +34,18 @@ if not exist "%BROWSER%" (
 )
 echo  Browser: %BROWSER%
 
-set "ARGS=--kiosk --kiosk-printing --no-first-run --disable-pinch --overscroll-history-navigation=0 --hide-crash-restore-bubble --edge-kiosk-type=fullscreen %URL%"
 set "STARTUP=%AppData%\Microsoft\Windows\Start Menu\Programs\Startup"
+
+:: The tablet login goes into the shortcut (after '#', never sent anywhere) so the app signs itself in
+:: at every start; Edge's kiosk mode forgets logins when it closes. Leave blank to sign in by hand.
+echo.
+echo  The tablet signs itself in to the Kvisa app every time it starts.
+set "KEMAIL="
+set "KPW="
+set /p "KEMAIL=  Tablet login email, then press Enter: "
+set /p "KPW=  Tablet login password, then press Enter: "
+if defined KEMAIL if defined KPW set "URL=%URL%#login=%KEMAIL%&pw=%KPW%"
+set "ARGS=--kiosk --kiosk-printing --no-first-run --disable-pinch --overscroll-history-navigation=0 --hide-crash-restore-bubble --edge-kiosk-type=fullscreen %URL%"
 
 :: Shortcut that starts the tablet app at sign-in, and one on the desktop
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$w = New-Object -ComObject WScript.Shell; $desk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Kvisa Tablet.lnk'; foreach ($p in @('%STARTUP%\Kvisa Tablet.lnk', $desk)) { $s = $w.CreateShortcut($p); $s.TargetPath = '%BROWSER%'; $s.Arguments = '%ARGS%'; $s.Save() }"
@@ -70,6 +80,7 @@ echo  Done.
 echo  1. Make the label printer the DEFAULT printer:
 echo     Settings ^> Bluetooth ^& devices ^> Printers ^& scanners ^> your printer ^> Set as default.
 echo  2. Restart the tablet (closing the browser is not enough).
-echo     The Kvisa tablet app opens full screen, and labels print with no window.
+echo     The Kvisa tablet app opens full screen, signed in, and labels print with no window.
 echo.
-pause
+echo  You can close this window now (tap the X in the corner).
+pause >nul

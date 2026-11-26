@@ -151,7 +151,7 @@
           getSession: () => Promise.resolve({ data: { session } }),
           onAuthStateChange: (cb) => { setTimeout(() => cb(localStorage.getItem('fakeLoggedOut') ? 'INITIAL_SESSION' : 'INITIAL_SESSION', localStorage.getItem('fakeLoggedOut') ? null : session), 0); return { data: { subscription: { unsubscribe() {} } } }; },
           signOut: () => { window.__signedOut = true; return Promise.resolve({ error: null }); },
-          signInWithPassword: (c) => Promise.resolve({ error: c && c.password === 'right-password' ? null : { message: 'Invalid login credentials' } }),
+          signInWithPassword: (c) => { window.__signins = (window.__signins || []).concat([c]); return Promise.resolve({ error: c && c.password === 'right-password' ? null : { message: 'Invalid login credentials' } }); },
           signUp: () => Promise.resolve({ data: {}, error: { message: 'Database error saving new user' } }),
           resetPasswordForEmail: () => Promise.resolve({ error: null }),
           updateUser: () => Promise.resolve({ error: null }),
