@@ -19,7 +19,7 @@ const blankForm = () => ({ first: '', middle: '', last: '', phone: '', israel: '
 
 const ICON_ID = raw('<svg class="kiosk-ic sm" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="11" width="36" height="26" rx="4"/><path d="M13 20h10M13 27h16M33 20h2"/></svg>');
 
-// Leaving the screen (5 taps on the logo) asks for the signed-in account's password, then signs out.
+// Leaving the screen (5 taps on the logo) asks for the signed-in account's password, then closes the app.
 export function render(container) {
   const s = settings();
   const org = s.org_name || APP_NAME;
@@ -308,7 +308,7 @@ export function render(container) {
     overlay.setAttribute('dir', 'ltr');   // for the office, always in English
     setHtml(overlay, html`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="kx-title"><form class="modal-form" novalidate>
       <header class="modal-head"><h2 id="kx-title">Leave tablet mode</h2></header>
-      <div class="modal-body"><p>Type the tablet account's password to leave.</p>
+      <div class="modal-body"><p>Type the tablet account's password to close the app.</p>
         <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password"></label></div>
       <div class="form-error" role="alert" hidden></div>
       <footer class="modal-foot"><button type="button" class="btn" data-x="cancel">Cancel</button>
@@ -322,7 +322,10 @@ export function render(container) {
       const { error } = await sb.auth.signInWithPassword({ email: state.ctx.email, password: f.elements.password.value });
       if (error) { const box = $('.form-error', overlay); box.textContent = 'Wrong password.'; box.hidden = false; return; }
       overlay.remove();
-      await sb.auth.signOut();
+      // Close the browser window (the tablet opens it full screen with nothing else), which leaves the
+      // tablet on the Windows desktop and keeps the login. If the browser refuses, sign out instead.
+      window.close();
+      setTimeout(() => { if (!window.closed) sb.auth.signOut(); }, 600);
     };
   }
 

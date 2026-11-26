@@ -205,7 +205,7 @@ def main():
         tab.on('pageerror', lambda e: terr.append(f'pageerror: {e}'))
         tab.on('console', lambda m: terr.append(f'console.{m.type}: {m.text}') if m.type == 'error' else None)
         tab.route('https://cdn.jsdelivr.net/**', lambda r: r.fulfill(status=200, content_type='application/javascript', body=FAKE))
-        tab.add_init_script("localStorage.setItem('fakeRole','kiosk'); localStorage.removeItem('fakeLoggedOut'); window.__prints = 0; window.print = () => { window.__prints++; };")
+        tab.add_init_script("localStorage.setItem('fakeRole','kiosk'); localStorage.removeItem('fakeLoggedOut'); window.__prints = 0; window.print = () => { window.__prints++; }; window.close = () => { window.__closed = true; };")
         rpcs = lambda name: [w for w in tab.evaluate('window.__writes') if w.get('rpc') == name]
         no_overflow = lambda: not tab.evaluate('document.documentElement.scrollWidth > window.innerWidth + 2')
         tab.goto(f'{base}/index.html')
@@ -317,8 +317,10 @@ def main():
         tab.wait_for_selector('.modal .form-error:not([hidden])')
         check('leaving tablet mode needs the password, asked in English even on a Hebrew screen', 'Leave tablet mode' in tab.inner_text('.modal') and 'Wrong password' in tab.inner_text('.modal') and not tab.evaluate('window.__signedOut || false'))
         tab.fill('.modal input[type=password]', 'right-password'); tab.click('.modal button[type=submit]')
-        tab.wait_for_timeout(300)
-        check('right password signs the tablet out', tab.evaluate('window.__signedOut === true'))
+        tab.wait_for_timeout(100)
+        check('right password closes the app (and keeps the login)', tab.evaluate('window.__closed === true') and not tab.evaluate('window.__signedOut || false'))
+        tab.wait_for_timeout(900)
+        check('if the browser refuses to close, it signs out instead', tab.evaluate('window.__signedOut === true'))
         tctx.close()
 
         # the same screens on a small phone-sized window
