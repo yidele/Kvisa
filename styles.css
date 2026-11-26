@@ -453,6 +453,7 @@ body.kiosk-mode { overscroll-behavior: none; background: #f3f4fa; }
   display: flex; flex-direction: column; justify-content: space-between; font-family: Arial, Helvetica, sans-serif; box-shadow: var(--shadow); }
 .k-mini-no { font-size: 1.6rem; font-weight: 800; }
 .k-mini-name { font-weight: 700; font-size: 1rem; word-break: break-word; }
+.k-mini-put { font-size: .8rem; font-weight: 700; line-height: 1.2; }
 .k-mini-foot { font-size: .85rem; font-weight: 700; border-top: 2px solid #000; padding-top: .3rem; }
 .k-mini.receipt { border: 3px solid var(--accent); background: #f4f8ff; }
 .k-mini-tag { font-size: .75rem; font-weight: 800; text-transform: uppercase; color: #1f5fae; }
@@ -509,30 +510,30 @@ body.kiosk-mode .modal-overlay { font-size: 18px; }
 @media (max-width: 700px) { .kbd-key { height: 52px; font-size: 1.25rem; } }
 @media print { .kbd { display: none !important; } }
 
-/* printed bag labels: one per page, page size set by the tablet from Settings */
-.k-label { box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
-  break-after: page; page-break-after: always; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+/* printed labels: one per page. Page sizes come from Settings (the tablet sets @page); the receipt is a
+   longer page. Every size uses the same layout, scaled by --s. */
+.k-label { --s: 1; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: calc(6pt * var(--s));
+  overflow: hidden; break-after: page; page-break-after: always; color: #000; background: #fff; font-family: Arial, Helvetica, sans-serif;
+  text-align: center; }
 .k-label:last-child { break-after: auto; page-break-after: auto; }
-.k-label.receipt { outline: 4px solid #000; outline-offset: -10px; }
-.k-label-org { font-size: 12pt; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-.k-label-no { font-size: 60pt; font-weight: 800; line-height: 1; }
-.k-label-name { font-size: 26pt; font-weight: 700; line-height: 1.1; word-break: break-word; }
-.k-label-phone { font-size: 18pt; }
-.k-label-foot { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid #000; padding-top: 6pt; font-size: 16pt; }
 .k-label[data-size="4x6"] { width: 4in; height: 6in; padding: .3in; }
-.k-label[data-size="62mm"] { width: 62mm; height: 100mm; padding: 4mm; }
-.k-label[data-size="62mm"] .k-label-no { font-size: 36pt; }
-.k-label[data-size="62mm"] .k-label-name { font-size: 18pt; }
-.k-label[data-size="62mm"] .k-label-phone, .k-label[data-size="62mm"] .k-label-foot { font-size: 12pt; }
-.k-label[data-size="2.25x1.25"] { width: 2.25in; height: 1.25in; padding: .06in .1in; }
-.k-label[data-size="2.25x1.25"] .k-label-org, .k-label[data-size="2.25x1.25"] .k-label-phone { display: none; }
-.k-label[data-size="2.25x1.25"] .k-label-no { font-size: 22pt; }
-.k-label[data-size="2.25x1.25"] .k-label-name { font-size: 11pt; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
-.k-label[data-size="2.25x1.25"] .k-label-foot { font-size: 8pt; border-top-width: 1px; padding-top: 2pt; }
-.k-label[data-size="letter"] { width: 8.5in; height: 11in; padding: .75in; }
-.k-label[data-size="letter"] .k-label-no { font-size: 120pt; }
-.k-label[data-size="letter"] .k-label-name { font-size: 48pt; }
-.k-label[data-size="letter"] .k-label-phone, .k-label[data-size="letter"] .k-label-foot { font-size: 28pt; }
+.k-label[data-size="62mm"] { --s: .62; width: 62mm; height: 100mm; padding: 4mm; }
+.k-label[data-size="2.25x1.25"] { --s: .34; width: 2.25in; height: 1.25in; padding: .06in .1in; }
+.k-label[data-size="letter"] { --s: 1.9; width: 8.5in; height: 11in; padding: .75in; }
+.k-label-put { font-size: calc(17pt * var(--s)); font-weight: 700; line-height: 1.25; }
+.k-label-no { font-size: calc(66pt * var(--s)); font-weight: 800; line-height: 1; }
+.k-label-foot { border-top: calc(2pt * var(--s)) solid #000; padding-top: calc(6pt * var(--s)); font-size: calc(17pt * var(--s)); font-weight: 700; }
+/* the receipt the person keeps */
+.k-label.receipt { page: receipt; justify-content: flex-start; outline: calc(4px * var(--s)) solid #000; outline-offset: calc(-10px * var(--s)); }
+.k-label.receipt[data-size="4x6"] { height: 7.5in; }
+.k-label.receipt[data-size="62mm"] { height: 125mm; }
+.k-l1 { display: block; }
+.k-label-title { font-size: calc(28pt * var(--s)); font-weight: 800; border-bottom: calc(2pt * var(--s)) solid #000; padding-bottom: calc(6pt * var(--s)); }
+.receipt .k-label-no { font-size: calc(64pt * var(--s)); margin: calc(8pt * var(--s)) 0; }
+.k-label-name { font-size: calc(32pt * var(--s)); font-weight: 700; line-height: 1.15; word-break: break-word; }
+.k-label-phone { font-size: calc(26pt * var(--s)); font-weight: 600; }
+.k-label-line { font-size: calc(21pt * var(--s)); }
+.k-label-cancel { margin-top: auto; border-top: calc(2pt * var(--s)) solid #000; padding-top: calc(8pt * var(--s)); font-size: calc(22pt * var(--s)); font-weight: 800; line-height: 1.25; }
 @media print {
   body.kiosk-mode { background: #fff; }
   body.kiosk-mode > :not(#kiosk-print) { display: none !important; }

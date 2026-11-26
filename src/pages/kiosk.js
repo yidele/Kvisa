@@ -5,7 +5,7 @@
 import { sb, rpc, state, settings } from '../lib/api.js';
 import { html, raw, setHtml, $, on } from '../lib/dom.js';
 import { orderNo, fmtDate, friendlyError } from '../lib/format.js';
-import { TEXT, LANGS, LABEL_SIZES, checkDropOff, checkLookup, labelPages } from '../lib/kiosk.js';
+import { TEXT, LANGS, LABEL_SIZES, checkDropOff, checkLookup, labelPages, hebrewDate, localDate } from '../lib/kiosk.js';
 import { APP_NAME } from '../config.js';
 import { LOGO_WHITE } from '../lib/app.js';
 import { attachKeyboard } from '../components/kioskKeyboard.js';
@@ -51,7 +51,8 @@ export function render(container) {
   const body = $('.kiosk-screen', container);
   const printArea = $('#kiosk-print', container);
   const pageStyle = document.createElement('style');
-  pageStyle.textContent = `@page { size: ${(LABEL_SIZES[labelSize] || LABEL_SIZES['4x6']).css}; margin: 0; }`;
+  const sizes = LABEL_SIZES[labelSize] || LABEL_SIZES['4x6'];
+  pageStyle.textContent = `@page { size: ${sizes.css}; margin: 0; } @page receipt { size: ${sizes.receipt}; margin: 0; }`;
   document.head.appendChild(pageStyle);
   document.body.classList.add('kiosk-mode');
   const kb = attachKeyboard(shell, { text: () => TEXT[lang], lettersFor: () => (lang === 'en' ? 'en' : 'he') });
@@ -68,9 +69,9 @@ export function render(container) {
   const when = (v) => fmtDate(v, s.time_zone);
   const fullName = () => [form.first, form.middle, form.last].map((x) => x.trim()).filter(Boolean).join(' ');
 
-  const miniBag = (no, name, p) => html`<div class="k-mini">
-    <span class="k-mini-no">${no}</span><span class="k-mini-name" dir="auto">${name}</span>
-    <span class="k-mini-foot">Bag ${p.index} of ${p.of}</span></div>`;
+  const miniBag = (no, p) => html`<div class="k-mini">
+    <span class="k-mini-put" dir="auto">${t().labelPut}</span><span class="k-mini-no">${no}</span>
+    <span class="k-mini-foot">${t().bagOf(p.index, p.of)}</span></div>`;
   const miniReceipt = (id, name, bags) => html`<div class="k-mini receipt">
     <span class="k-mini-tag">${t().receipt}</span><span class="k-mini-no">ID ${id}</span>
     <span class="k-mini-name" dir="auto">${name}</span><span class="k-mini-foot">${bags} ${t().bagsWord}</span></div>`;
@@ -122,7 +123,7 @@ export function render(container) {
       ${bannerBox()}
       <p class="kiosk-sub">${t().previewText(form.bags)}</p>
       <div class="kiosk-minis" dir="ltr">
-        ${labelPages(form.bags).map((p) => miniBag('K-····', fullName(), p))}
+        ${labelPages(form.bags).map((p) => miniBag('K-····', p))}
         ${miniReceipt('····', fullName(), form.bags)}
       </div>
       <div class="kiosk-actions">
@@ -136,7 +137,7 @@ export function render(container) {
       <p class="kiosk-printing"><span class="spinner"></span>${t().printing}</p>
       <p class="kiosk-sub">${t().stick(result.bags)}</p>
       <div class="kiosk-minis" dir="ltr">
-        ${labelPages(result.bags).map((p) => miniBag(orderNo(result.order_no), result.name, p))}
+        ${labelPages(result.bags).map((p) => miniBag(orderNo(result.order_no), p))}
         ${miniReceipt(result.order_no, result.name, result.bags)}
       </div>
       <p class="kiosk-sub">${t().yourId}</p>
@@ -227,21 +228,27 @@ export function render(container) {
     draw();
   }
 
-  // One label per bag, then one receipt for the person. Labels are in English for the office.
+  // One label per bag, then one receipt for the person. Bag labels carry only the order number and what to do,
+  // in English, plus Hebrew or Yiddish after a slash when that was the screen language. The receipt is in the
+  // person's language, with the Hebrew date for Hebrew and Yiddish.
   function renderLabels() {
     const r = result;
-    setHtml(printArea, html`${labelPages(r.bags).map((p) => html`<div class="k-label" data-size="${labelSize}">
-      <div class="k-label-org">${org}</div>
+    const tl = TEXT[lang];
+    // English, then (for Hebrew / Yiddish) a slash and the same words on their own line, so the two never mix
+    const also = (en, other) => (lang === 'en' ? en : html`<span class="k-l1">${en} /</span><span class="k-l1" dir="rtl" lang="${lang}">${other}</span>`);
+    setHtml(printArea, html`${labelPages(r.bags).map((p) => html`<div class="k-label bag" data-size="${labelSize}">
+      <div class="k-label-put">${also(TEXT.en.labelPut, tl.labelPut)}</div>
       <div class="k-label-no">${orderNo(r.order_no)}</div>
+      <div class="k-label-foot">${also(TEXT.en.bagOf(p.index, p.of), tl.bagOf(p.index, p.of))}</div>
+    </div>`)}<div class="k-label receipt" data-size="${labelSize}" dir="${LANGS[lang].dir}" lang="${lang}">
+      <div class="k-label-title">${tl.receiptTitle}</div>
+      <div class="k-label-no" dir="ltr">ID ${r.order_no}</div>
       <div class="k-label-name" dir="auto">${r.name}</div>
       <div class="k-label-phone" dir="ltr">${r.phone}</div>
-      <div class="k-label-foot"><strong>Bag ${p.index} of ${p.of}</strong><span>${when(r.created_at)}</span></div>
-    </div>`)}<div class="k-label receipt" data-size="${labelSize}">
-      <div class="k-label-org">${org} · RECEIPT — KEEP THIS</div>
-      <div class="k-label-no">ID ${r.order_no}</div>
-      <div class="k-label-name" dir="auto">${r.name}</div>
-      <div class="k-label-phone">${r.bags} bag(s) · ${when(r.created_at)}</div>
-      <div class="k-label-foot"><span>To cancel: tablet → "I have an ID number"</span></div>
+      <div class="k-label-line">${r.bags} ${tl.bagsWord}</div>
+      <div class="k-label-line">${localDate(r.created_at, lang, s.time_zone)}</div>
+      ${lang === 'en' ? '' : html`<div class="k-label-line">${hebrewDate(r.created_at, s.time_zone)}</div>`}
+      <div class="k-label-cancel">${tl.receiptCancel}</div>
     </div>`);
   }
 

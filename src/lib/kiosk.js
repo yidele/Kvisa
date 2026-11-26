@@ -13,6 +13,9 @@ export const TEXT = {
   he: {
     tagline: 'מסירת כביסה',
     kbdNext: 'הבא', kbdDone: 'סיום', kbdSpace: 'רווח',
+    bagOf: (i, n) => `שקית ${i} מתוך ${n}`,
+    labelPut: 'הדביקו את המדבקה על השקית', receiptTitle: 'קבלה — לשמור!',
+    receiptCancel: 'לביטול: בטאבלט, לחצו "יש לי מספר מזהה"',
     back: 'חזרה',
     infoTitle: 'איך זה עובד',
     infoSteps: [
@@ -52,6 +55,9 @@ export const TEXT = {
   en: {
     tagline: 'Laundry drop-off',
     kbdNext: 'Next', kbdDone: 'Done', kbdSpace: 'space',
+    bagOf: (i, n) => `Bag ${i} of ${n}`,
+    labelPut: 'Put this label on your bag', receiptTitle: 'RECEIPT — KEEP THIS',
+    receiptCancel: 'To cancel: on the tablet, tap "I have an ID number"',
     back: 'Back',
     infoTitle: 'How it works',
     infoSteps: [
@@ -91,6 +97,9 @@ export const TEXT = {
   yi: {
     tagline: 'אפגעבן וועש',
     kbdNext: 'ווייטער', kbdDone: 'פארטיג', kbdSpace: 'שפאציע',
+    bagOf: (i, n) => `זאק ${i} פון ${n}`,
+    labelPut: 'קלעפט דעם לעיבל אויף אייער זאק', receiptTitle: 'קבלה — האלט עס אן!',
+    receiptCancel: 'אפצושטעלן: אויפן טאבלעט, דרוקט "איך האב אן ID נומער"',
     back: 'צוריק',
     infoTitle: 'ווי אזוי עס ארבעט',
     infoSteps: [
@@ -129,13 +138,40 @@ export const TEXT = {
   },
 };
 
-// Label sizes offered in Settings. css = the @page size used when printing.
+// Label sizes offered in Settings. css = the @page size of a bag label; receipt = the (longer) receipt.
 export const LABEL_SIZES = {
-  '4x6': { label: '4 × 6 in (shipping label printers: Rollo, Zebra, Munbyn…)', css: '4in 6in' },
-  '62mm': { label: '62 × 100 mm (Brother QL)', css: '62mm 100mm' },
-  '2.25x1.25': { label: '2.25 × 1.25 in (Dymo small)', css: '2.25in 1.25in' },
-  letter: { label: 'Full page (regular printer)', css: 'letter' },
+  '4x6': { label: '4 × 6 in (shipping label printers: Rollo, Zebra, Munbyn…)', css: '4in 6in', receipt: '4in 7.5in' },
+  '62mm': { label: '62 × 100 mm (Brother QL)', css: '62mm 100mm', receipt: '62mm 125mm' },
+  '2.25x1.25': { label: '2.25 × 1.25 in (Dymo small)', css: '2.25in 1.25in', receipt: '2.25in 1.25in' },
+  letter: { label: 'Full page (regular printer)', css: 'letter', receipt: 'letter' },
 };
+
+// Hebrew numerals: 16 → ט״ז, 787 → תשפ״ז (15 and 16 are written ט״ו / ט״ז, never spelling God's name).
+export function gematria(n) {
+  const ones = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
+  const tens = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'];
+  const hundreds = ['', 'ק', 'ר', 'ש', 'ת'];
+  let x = n % 1000;
+  let out = 'ת'.repeat(Math.floor(x / 400)); x %= 400;
+  out += hundreds[Math.floor(x / 100)]; x %= 100;
+  if (x === 15) out += 'טו';
+  else if (x === 16) out += 'טז';
+  else out += tens[Math.floor(x / 10)] + ones[x % 10];
+  return out.length === 1 ? `${out}׳` : `${out.slice(0, -1)}״${out.slice(-1)}`;
+}
+
+// The Hebrew date in Hebrew letters, e.g. "ט״ז כסלו תשפ״ז".
+export function hebrewDate(date, timeZone = 'America/New_York') {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('he-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric', timeZone })
+    .formatToParts(new Date(date)).map((p) => [p.type, p.value]));
+  return `${gematria(Number(parts.day))} ${parts.month} ${gematria(Number(parts.year))}`;
+}
+
+// The ordinary date written in the person's language.
+export function localDate(date, lang, timeZone = 'America/New_York') {
+  const locale = { he: 'he-IL', yi: 'yi', en: 'en-US' }[lang] || 'en-US';
+  return new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone }).format(new Date(date));
+}
 
 export const phoneDigits = (p) => String(p ?? '').replace(/\D/g, '');
 const tidy = (s) => String(s ?? '').trim().replace(/\s+/g, ' ');

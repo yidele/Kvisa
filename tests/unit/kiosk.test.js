@@ -57,3 +57,12 @@ test('every label size the database allows has a print size', () => {
   assert.deepEqual(Object.keys(LABEL_SIZES).sort(), ['2.25x1.25', '4x6', '62mm', 'letter']);
   for (const v of Object.values(LABEL_SIZES)) assert.ok(v.css && v.label);
 });
+
+test('Hebrew numerals and the Hebrew date on the receipt', async () => {
+  const { gematria, hebrewDate } = await import('../../src/lib/kiosk.js');
+  assert.equal(gematria(1), 'א׳');
+  assert.equal(gematria(15), 'ט״ו');
+  assert.equal(gematria(16), 'ט״ז');
+  assert.equal(gematria(5787), 'תשפ״ז');
+  assert.equal(hebrewDate('2026-11-26T15:00:00Z'), 'ט״ז כסלו תשפ״ז');
+});
