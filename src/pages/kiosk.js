@@ -87,7 +87,10 @@ export function render(container) {
 
     info: () => html`${head('welcome')}<div class="kiosk-body"><section class="kiosk-card kiosk-info-page">
       <h1>${t().infoTitle}</h1>
+      <p class="kiosk-sub">${t().infoIntro}</p>
       <ol class="kiosk-how">${t().infoSteps.map((x, i) => html`<li><span class="kiosk-how-no" aria-hidden="true">${i + 1}</span><span>${x}</span></li>`)}</ol>
+      <ul class="kiosk-times">${t().infoTimes.map((x) => html`<li>${x}</li>`)}</ul>
+      <p class="kiosk-note"><strong>${t().infoNoteLabel}</strong> ${t().infoNote}<br>${t().infoThanks}</p>
       <button type="button" class="btn btn-primary btn-lg btn-block kiosk-submit" data-go="form">${t().continue}</button>
       <button type="button" class="kiosk-idlink" data-go="lookup">${ICON_ID}<span><strong>${t().haveId}</strong><small>${t().haveIdSub}</small></span></button>
     </section></div>`,

@@ -38,6 +38,7 @@ test('Hebrew, English and Yiddish have exactly the same texts', () => {
     assert.deepEqual(Object.keys(TEXT[lang]).sort(), keys, lang);
     for (const k of keys) assert.equal(typeof TEXT[lang][k], typeof TEXT.en[k], `${lang}.${k}`);
     assert.equal(TEXT[lang].infoSteps.length, TEXT.en.infoSteps.length, `${lang} infoSteps`);
+    assert.equal(TEXT[lang].infoTimes.length, TEXT.en.infoTimes.length, `${lang} infoTimes`);
     for (const st of ['waiting', 'picked_up', 'cancelled', 'returned']) assert.ok(TEXT[lang]['state_' + st], `${lang} state_${st}`);
   }
   assert.equal(LANGS.he.dir, 'rtl'); assert.equal(LANGS.yi.dir, 'rtl'); assert.equal(LANGS.en.dir, 'ltr');

@@ -422,7 +422,12 @@ body.kiosk-mode { overscroll-behavior: none; background: #f3f4fa; }
   font: 700 1.9rem/1.2 var(--font); cursor: pointer; box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
 
 /* how it works */
-.kiosk-how { list-style: none; padding: 0; margin: 1rem 0 1.5rem; display: flex; flex-direction: column; gap: .9rem; }
+.kiosk-times { list-style: none; margin: 0 0 1rem; padding: .8rem 1rem; border-inline-start: 4px solid var(--wait); background: var(--wait-soft);
+  border-radius: 10px; display: flex; flex-direction: column; gap: .35rem; font-size: 1.1rem; }
+.kiosk-times li::before { content: "•"; color: var(--wait); font-weight: 800; margin-inline-end: .5rem; }
+.kiosk-note { background: var(--warn-soft); border-radius: 10px; padding: .8rem 1rem; font-size: 1.1rem; margin: 0 0 1.25rem; }
+.kiosk-note strong { color: var(--warn); }
+.kiosk-how { list-style: none; padding: 0; margin: .75rem 0 1.25rem; display: flex; flex-direction: column; gap: .9rem; }
 .kiosk-how li { display: flex; align-items: flex-start; gap: .9rem; font-size: 1.25rem; }
 .kiosk-how-no { flex: none; width: 42px; height: 42px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 800; }
 .kiosk-idlink { display: flex; align-items: center; gap: 1rem; width: 100%; margin-top: 1rem; padding: 1rem 1.25rem; border-radius: 14px;
