@@ -237,14 +237,16 @@ def run_all():
         # Yiddish: how it works, right-to-left
         tab.click('[data-lang=yi]'); tab.wait_for_selector('.kiosk-how')
         check('2 Yiddish "how it works" is right-to-left, with Continue and "I have an ID number"', tab.get_attribute('.kiosk', 'dir') == 'rtl'
-              and 'ווי אזוי עס ארבעט' in tab.inner_text('.kiosk') and 'איך האב אן ID נומער' in tab.inner_text('.kiosk') and len(tab.query_selector_all('.kiosk-how li')) == 4)
+              and 'שלום!' in tab.inner_text('.kiosk') and 'איך האב אן ID נומער' in tab.inner_text('.kiosk') and len(tab.query_selector_all('.kiosk-how li')) == 7
+              and len(tab.query_selector_all('.kiosk-how li.important')) == 1 and 'דארפט איר נישט אנרופן' in tab.inner_text('.kiosk'))
         tab.screenshot(path=str(SHOTS / 'tablet-2-info-yi.png'))
         tab.click('.kiosk-back'); tab.wait_for_selector('.kiosk-welcome')
 
         # English drop-off, start to finish
         tab.click('[data-lang=en]'); tab.wait_for_selector('.kiosk-how')
         it = tab.inner_text('.kiosk')
-        check('2 English "how it works" mentions about 2 days', 'How it works' in it and '2 days' in it and tab.get_attribute('.kiosk', 'dir') == 'ltr', it)
+        check('2 English "how it works" mentions 6:30, 2 days, no need to call, lost or left items', 'Hi!' in it and '6:30' in it and '2 days' in it
+              and "don't need to call" in it.replace('\u2019', "'") and 'lost or left items' in it and tab.get_attribute('.kiosk', 'dir') == 'ltr', it)
         tab.screenshot(path=str(SHOTS / 'tablet-2-info-en.png'))
         tab.click('[data-go=form]'); tab.wait_for_selector('form[data-form=dropoff]')
         tab.click('.kiosk-submit'); tab.wait_for_selector('.kiosk-err')

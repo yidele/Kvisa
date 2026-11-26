@@ -5,6 +5,8 @@ import { raw, html } from './dom.js';
 // resolved from this file so it works from any page.
 export const LOGO = new URL('../../assets/logo-mark.png', import.meta.url).href;
 export const LOGO_WHITE = new URL('../../assets/logo-mark-white.png', import.meta.url).href;
+// the full logo with its small words underneath (welcome screen of the tablet)
+export const LOGO_FULL_WHITE = new URL('../../assets/logo-full-white.png', import.meta.url).href;
 
 // Navy logo on light screens, white logo when the device is in dark mode.
 export const brandLogo = (cls, alt = '') => html`<picture class="brand-pic">

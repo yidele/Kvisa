@@ -7,7 +7,7 @@ import { html, raw, setHtml, $, on } from '../lib/dom.js';
 import { orderNo, fmtDate, friendlyError } from '../lib/format.js';
 import { TEXT, LANGS, LABEL_SIZES, checkDropOff, checkLookup, labelPages, hebrewDate, localDate } from '../lib/kiosk.js';
 import { APP_NAME } from '../config.js';
-import { LOGO_WHITE } from '../lib/app.js';
+import { LOGO_WHITE, LOGO_FULL_WHITE } from '../lib/app.js';
 import { attachKeyboard } from '../components/kioskKeyboard.js';
 
 // Seconds without a touch before a screen goes back to the welcome screen.
@@ -20,6 +20,15 @@ const blankForm = () => ({ first: '', middle: '', last: '', phone: '', israel: '
 
 // Boxes typed with the in-app keyboard: read-only to the browser, so the Windows keyboard never opens.
 const KB = Object.fromEntries(['name', 'phone', 'digits'].map((k) => [k, raw(`data-kbd="${k}" readonly inputmode="none"`)]));
+
+const CANCEL_STEP = 5;   // "keep your receipt / how to cancel" stands out in red
+
+// See-through bubbles rising behind the welcome screen: [left %, size px, seconds to rise, delay s].
+const BUBBLES = [[6, 90, 15, 0], [14, 28, 10, 3], [22, 56, 13, 7], [31, 18, 9, 1], [38, 120, 19, 5], [47, 34, 11, 9],
+  [55, 70, 16, 2], [63, 22, 8, 6], [71, 100, 18, 10], [79, 40, 12, 4], [86, 26, 9, 8], [93, 64, 14, 1], [10, 46, 12, 11],
+  [42, 24, 10, 13], [67, 52, 15, 12], [89, 140, 22, 6]];
+const BUBBLES_HTML = raw(`<div class="kiosk-bubbles" aria-hidden="true">${BUBBLES.map(([x, s, d, w]) =>
+  `<span style="left:${x}%;width:${s}px;height:${s}px;animation-duration:${d}s;animation-delay:-${w}s"></span>`).join('')}</div>`);
 
 const ICON_ID = raw('<svg class="kiosk-ic sm" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="11" width="36" height="26" rx="4"/><path d="M13 20h10M13 27h16M33 20h2"/></svg>');
 
@@ -77,10 +86,9 @@ export function render(container) {
     <span class="k-mini-name" dir="auto">${name}</span><span class="k-mini-foot">${bags} ${t().bagsWord}</span></div>`;
 
   const screens = {
-    welcome: () => html`<div class="kiosk-welcome">
-      <button type="button" class="kiosk-brand" data-k="logo" aria-label="${org}"><img class="kiosk-mark" src="${LOGO_WHITE}" alt=""></button>
+    welcome: () => html`${BUBBLES_HTML}<div class="kiosk-welcome">
+      <button type="button" class="kiosk-brand" data-k="logo" aria-label="${org}"><img class="kiosk-mark" src="${LOGO_FULL_WHITE}" alt=""></button>
       <h1 class="kiosk-welcome-name">${org}</h1>
-      <p class="kiosk-taglines"><span lang="he" dir="rtl">${TEXT.he.tagline}</span><span lang="en" dir="ltr">${TEXT.en.tagline}</span><span lang="yi" dir="rtl">${TEXT.yi.tagline}</span></p>
       <div class="kiosk-langs">${Object.entries(LANGS).map(([k, l]) =>
         html`<button type="button" class="kiosk-lang-btn" data-lang="${k}" lang="${k}" dir="${l.dir}">${l.name}</button>`)}</div>
     </div>`,
@@ -88,8 +96,9 @@ export function render(container) {
     info: () => html`${head('welcome')}<div class="kiosk-body"><section class="kiosk-card kiosk-info-page">
       <h1>${t().infoTitle}</h1>
       <p class="kiosk-sub">${t().infoIntro}</p>
-      <ol class="kiosk-how">${t().infoSteps.map((x, i) => html`<li><span class="kiosk-how-no" aria-hidden="true">${i + 1}</span><span>${x}</span></li>`)}</ol>
+      <ol class="kiosk-how">${t().infoSteps.map((x, i) => html`<li class="${i === CANCEL_STEP ? 'important' : ''}"><span class="kiosk-how-no" aria-hidden="true">${i + 1}</span><span>${x}</span></li>`)}</ol>
       <ul class="kiosk-times">${t().infoTimes.map((x) => html`<li>${x}</li>`)}</ul>
+      <p class="kiosk-nocall">${t().infoNoCall}</p>
       <p class="kiosk-note"><strong>${t().infoNoteLabel}</strong> ${t().infoNote}<br>${t().infoThanks}</p>
       <button type="button" class="btn btn-primary btn-lg btn-block kiosk-submit" data-go="form">${t().continue}</button>
       <button type="button" class="kiosk-idlink" data-go="lookup">${ICON_ID}<span><strong>${t().haveId}</strong><small>${t().haveIdSub}</small></span></button>

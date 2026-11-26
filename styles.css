@@ -412,9 +412,21 @@ body.kiosk-mode { overscroll-behavior: none; background: #f3f4fa; }
 
 /* welcome: the logo on its own navy */
 .kiosk[data-screen=welcome] { background: radial-gradient(circle at 30% 15%, var(--brand-2), var(--brand) 55%, #1a1b45); color: #fff; }
-.kiosk-welcome { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem 16px; gap: .5rem; }
+/* rising see-through bubbles behind the welcome screen */
+.kiosk[data-screen=welcome] { position: relative; overflow: hidden; }
+.kiosk-bubbles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.kiosk-bubbles span { position: absolute; bottom: -160px; border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.55) 0 8%, rgba(255,255,255,.10) 22%, rgba(255,255,255,.04) 60%, rgba(255,255,255,.14) 100%);
+  border: 1.5px solid rgba(255,255,255,.28); animation: kiosk-rise linear infinite; }
+@keyframes kiosk-rise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  8% { opacity: 1; }
+  50% { transform: translate(18px, -55vh); }
+  92% { opacity: 1; }
+  100% { transform: translate(-12px, calc(-100vh - 200px)); opacity: 0; } }
+.kiosk-welcome { position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem 16px; gap: .5rem; }
 .kiosk-brand { border: 0; background: none; padding: 0; cursor: default; -webkit-tap-highlight-color: transparent; }
-.kiosk-mark { width: 380px; max-width: 78vw; height: auto; display: block; filter: drop-shadow(0 12px 30px rgba(0, 0, 0, .25)); }
+.kiosk-mark { width: 440px; max-width: 82vw; height: auto; display: block; filter: drop-shadow(0 12px 30px rgba(0, 0, 0, .25)); }
 .kiosk .kiosk-welcome-name { font-size: 1.6rem; margin: 1.25rem 0 0; color: rgba(255,255,255,.92); font-weight: 600; }
 .kiosk-taglines { display: flex; flex-direction: column; gap: .15rem; color: rgba(255,255,255,.75); font-size: 1.15rem; margin-bottom: 2rem; }
 .kiosk-langs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; width: 100%; max-width: 720px; }
@@ -425,11 +437,14 @@ body.kiosk-mode { overscroll-behavior: none; background: #f3f4fa; }
 .kiosk-times { list-style: none; margin: 0 0 1rem; padding: .8rem 1rem; border-inline-start: 4px solid var(--wait); background: var(--wait-soft);
   border-radius: 10px; display: flex; flex-direction: column; gap: .35rem; font-size: 1.1rem; }
 .kiosk-times li::before { content: "•"; color: var(--wait); font-weight: 800; margin-inline-end: .5rem; }
+.kiosk-how li.important { background: #fdeceb; border: 2px solid #c62828; border-radius: 12px; padding: .7rem .8rem; color: #8e1c1c; font-weight: 700; }
+.kiosk-how li.important .kiosk-how-no { background: #c62828; color: #fff; }
+.kiosk-nocall { background: var(--ok-soft); color: var(--ok); border-radius: 10px; padding: .8rem 1rem; font-size: 1.15rem; font-weight: 700; margin: 0 0 1rem; }
 .kiosk-note { background: var(--warn-soft); border-radius: 10px; padding: .8rem 1rem; font-size: 1.1rem; margin: 0 0 1.25rem; }
 .kiosk-note strong { color: var(--warn); }
-.kiosk-how { list-style: none; padding: 0; margin: .75rem 0 1.25rem; display: flex; flex-direction: column; gap: .9rem; }
-.kiosk-how li { display: flex; align-items: flex-start; gap: .9rem; font-size: 1.25rem; }
-.kiosk-how-no { flex: none; width: 42px; height: 42px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 800; }
+.kiosk-how { list-style: none; padding: 0; margin: .6rem 0 1rem; display: flex; flex-direction: column; gap: .55rem; }
+.kiosk-how li { display: flex; align-items: flex-start; gap: .9rem; font-size: 1.2rem; }
+.kiosk-how-no { flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 800; }
 .kiosk-idlink { display: flex; align-items: center; gap: 1rem; width: 100%; margin-top: 1rem; padding: 1rem 1.25rem; border-radius: 14px;
   border: 2px solid var(--border-strong); background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; text-align: start; }
 .kiosk-idlink strong { display: block; font-size: 1.25rem; }
