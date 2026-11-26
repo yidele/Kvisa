@@ -305,14 +305,14 @@ export function render(container) {
   async function exitTablet() {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    overlay.setAttribute('dir', dir());
+    overlay.setAttribute('dir', 'ltr');   // for the office, always in English
     setHtml(overlay, html`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="kx-title"><form class="modal-form" novalidate>
-      <header class="modal-head"><h2 id="kx-title">${t().exitTitle}</h2></header>
-      <div class="modal-body"><p>${t().exitPrompt}</p>
-        <label class="field"><span>${t().password}</span><input name="password" type="password" autocomplete="current-password"></label></div>
+      <header class="modal-head"><h2 id="kx-title">Leave tablet mode</h2></header>
+      <div class="modal-body"><p>Type the tablet account's password to leave.</p>
+        <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password"></label></div>
       <div class="form-error" role="alert" hidden></div>
-      <footer class="modal-foot"><button type="button" class="btn" data-x="cancel">${t().cancel}</button>
-        <button type="submit" class="btn btn-danger">${t().exit}</button></footer></form></div>`);
+      <footer class="modal-foot"><button type="button" class="btn" data-x="cancel">Cancel</button>
+        <button type="submit" class="btn btn-danger">Leave</button></footer></form></div>`);
     container.appendChild(overlay);
     const f = $('form', overlay);
     f.elements.password.focus();
@@ -320,7 +320,7 @@ export function render(container) {
     f.onsubmit = async (e) => {
       e.preventDefault();
       const { error } = await sb.auth.signInWithPassword({ email: state.ctx.email, password: f.elements.password.value });
-      if (error) { const box = $('.form-error', overlay); box.textContent = t().errPassword; box.hidden = false; return; }
+      if (error) { const box = $('.form-error', overlay); box.textContent = 'Wrong password.'; box.hidden = false; return; }
       overlay.remove();
       await sb.auth.signOut();
     };

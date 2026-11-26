@@ -47,8 +47,6 @@ export const TEXT = {
     errId: 'נא להקליד את המספר המזהה מהקבלה.', errLast4: 'נא להקליד 4 ספרות.',
     notFound: 'לא מצאנו מסירה עם המספר והספרות האלה. בדקו ונסו שוב.',
     errServer: 'משהו השתבש. נסו שוב, או פנו למשרד.', errOffline: 'אין חיבור לאינטרנט. נסו שוב בעוד רגע.',
-    exitTitle: 'יציאה ממצב טאבלט', exitPrompt: 'הקלידו את הסיסמה של חשבון הטאבלט כדי לצאת.', password: 'סיסמה', exit: 'יציאה', cancel: 'ביטול',
-    errPassword: 'סיסמה שגויה.',
   },
   en: {
     tagline: 'Laundry drop-off',
@@ -87,8 +85,6 @@ export const TEXT = {
     errId: 'Please type the ID number from your receipt.', errLast4: 'Please type 4 digits.',
     notFound: "We didn't find a drop-off with this ID and these digits. Please check and try again.",
     errServer: 'Something went wrong. Please try again, or ask the office.', errOffline: 'No internet connection. Please try again in a moment.',
-    exitTitle: 'Leave tablet mode', exitPrompt: "Type the tablet account's password to leave.", password: 'Password', exit: 'Leave', cancel: 'Cancel',
-    errPassword: 'Wrong password.',
   },
   yi: {
     tagline: 'אפגעבן וועש',
@@ -127,8 +123,6 @@ export const TEXT = {
     errId: 'ביטע שרייבט אריין דעם ID נומער פון אייער קבלה.', errLast4: 'ביטע שרייבט אריין 4 ציפערן.',
     notFound: 'מיר האבן נישט געטראפן קיין אפגעבונג מיט דעם נומער און די ציפערן. ביטע קוקט איבער און פרובירט נאכאמאל.',
     errServer: 'עפעס איז נישט געגאנגען. פרובירט נאכאמאל, אדער פרעגט אין אפיס.', errOffline: 'נישטא קיין אינטערנעט. פרובירט נאכאמאל אין א מינוט.',
-    exitTitle: 'ארויסגיין פון טאבלעט', exitPrompt: 'שרייבט אריין דעם פאסווארט פון טאבלעט אקאונט כדי ארויסצוגיין.', password: 'פאסווארט', exit: 'ארויסגיין', cancel: 'צוריק',
-    errPassword: 'פאלשער פאסווארט.',
   },
 };
 

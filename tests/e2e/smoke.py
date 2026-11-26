@@ -310,12 +310,12 @@ def main():
         tab.click('[data-go=welcome]'); tab.wait_for_selector('.kiosk-welcome')
 
         # leave tablet mode
-        tab.click('[data-lang=en]'); tab.wait_for_selector('.kiosk-how')
+        tab.click('[data-lang=he]'); tab.wait_for_selector('.kiosk-how')
         for _ in range(5): tab.click('[data-k=logo]')
         tab.wait_for_selector('.modal input[type=password]')
         tab.fill('.modal input[type=password]', 'wrong'); tab.click('.modal button[type=submit]')
         tab.wait_for_selector('.modal .form-error:not([hidden])')
-        check('leaving tablet mode needs the password', 'Wrong password' in tab.inner_text('.modal') and not tab.evaluate('window.__signedOut || false'))
+        check('leaving tablet mode needs the password, asked in English even on a Hebrew screen', 'Leave tablet mode' in tab.inner_text('.modal') and 'Wrong password' in tab.inner_text('.modal') and not tab.evaluate('window.__signedOut || false'))
         tab.fill('.modal input[type=password]', 'right-password'); tab.click('.modal button[type=submit]')
         tab.wait_for_timeout(300)
         check('right password signs the tablet out', tab.evaluate('window.__signedOut === true'))
